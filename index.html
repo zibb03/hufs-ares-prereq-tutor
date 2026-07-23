@@ -52,6 +52,19 @@
     border-radius:14px;transition:transform .25s var(--ease-out),box-shadow .25s var(--ease-out),background-color .2s ease,border-color .2s ease}
   #newchat:hover,#upload-btn:hover,#tool-hint:hover,#tool-blank:hover,#tool-explain:hover,#reflect-open:hover{
     transform:translateY(-2px);box-shadow:var(--shadow-md)}
+
+  /* 시인성: 배경이 흰색이라 연한 테두리만으로는 요소 경계가 거의 보이지 않았다.
+     클릭 가능한 것들에 회색 면과 진한 테두리를 줘서 눌러야 할 곳이 드러나게 한다. */
+  #tool-hint,#tool-blank,#tool-explain{
+    background:var(--surface);border-color:#d6d6d3;color:var(--graphite);font-weight:500}
+  #tool-hint:hover,#tool-blank:hover,#tool-explain:hover{
+    background:var(--sage-soft);border-color:var(--forest);color:var(--forest)}
+  #newchat,#upload-btn{background:var(--surface);border-color:#d6d6d3}
+  #newchat:hover,#upload-btn:hover{background:var(--sage-soft);border-color:var(--forest)}
+  .input-row{border-color:#cfcfcc !important;background:#fff}
+  /* 후속 질문 행: 구분선만으로는 클릭 가능한지 안 보여서 호버 면을 준다 */
+  .suggest-row{border-radius:10px;transition:background-color .18s ease,padding-left .18s ease}
+  .suggest-row:hover{background:var(--sage-soft)}
   #send{transition:transform .2s var(--ease-out),box-shadow .2s var(--ease-out)}
   #send:hover:not(:disabled){transform:scale(1.08);box-shadow:var(--shadow-md)}
   #send:active:not(:disabled){transform:scale(.92)}
@@ -84,12 +97,14 @@
     </div>
 
     <div class="px-5 py-4 border-b border-[var(--line)]">
-      <div class="flex items-center justify-between mb-3">
-        <span class="label" title="대화 진행을 기준으로 한 표시이며, 실제 성취 평가가 아닙니다">진행 현황 · 대화 기준</span>
-        <span id="mastery-label" class="text-[11px] font-medium text-[var(--forest)]">0%</span>
-      </div>
-      <div class="h-1.5 bg-[var(--surface)] overflow-hidden mb-4" aria-label="대화 진행률">
-        <div id="mastery-bar" class="h-full bg-[var(--forest)] transition-all duration-500" style="width:0%"></div>
+      <div id="progress-box">
+        <div class="flex items-center justify-between mb-3">
+          <span class="label" title="대화 진행을 기준으로 한 표시이며, 실제 성취 평가가 아닙니다">진행 현황 · 대화 기준</span>
+          <span id="mastery-label" class="text-[11px] font-medium text-[var(--forest)]">0%</span>
+        </div>
+        <div class="h-1.5 bg-[var(--surface)] overflow-hidden mb-4" aria-label="대화 진행률">
+          <div id="mastery-bar" class="h-full bg-[var(--forest)] transition-all duration-500" style="width:0%"></div>
+        </div>
       </div>
       <ol id="concept-map" class="space-y-1.5"></ol>
       <div id="concept-legend" class="flex gap-3 mt-3 text-[10px] text-[var(--slate)]">
@@ -122,7 +137,7 @@
         <strong id="concept-title" class="text-[14px]">결합확률분포</strong>
         <span id="stage-badge" class="ml-auto text-[12px] text-[var(--forest)] font-medium">1단계 · 진단</span>
       </div>
-      <div id="context-detail" class="text-[11px] text-[var(--slate)] mt-1">목표: 결합분포를 이해하기 위한 확률의 기초를 점검합니다.</div>
+      <div id="context-detail" class="text-[11px] text-[var(--slate)] mt-1"></div>
     </header>
 
     <section class="flex-1 min-h-0 flex flex-col" aria-label="소크라테스 대화">
@@ -278,12 +293,18 @@ function renderSidebar(){
 }
 
 function renderLearning(){
-  const mastered = Math.min(learning.concept, concepts.length);
-  const progress = Math.round(((mastered + Math.min(learning.turn / 4, 1)) / concepts.length) * 100);
-  $('mastery-label').textContent = progress + '%';
-  $('mastery-bar').style.width = progress + '%';
+  // 업로드 과목은 선수개념 지도가 없어 concepts 가 빈 배열이다.
+  // 이때 0으로 나누면 진행률이 NaN% 으로 표시되므로 진행 현황 자체를 숨긴다.
+  const hasMap = concepts.length > 0;
+  $('progress-box').classList.toggle('hidden', !hasMap);
+  if(hasMap){
+    const mastered = Math.min(learning.concept, concepts.length);
+    const progress = Math.round(((mastered + Math.min(learning.turn / 4, 1)) / concepts.length) * 100);
+    $('mastery-label').textContent = progress + '%';
+    $('mastery-bar').style.width = progress + '%';
+  }
   $('stage-badge').textContent = learning.done ? '세션 완료 🎉' : `${learning.stage + 1}단계 · ${stages[learning.stage]}`;
-  $('concept-title').textContent = concepts[Math.min(learning.concept, concepts.length - 1)];
+  $('concept-title').textContent = hasMap ? concepts[Math.min(learning.concept, concepts.length - 1)] : lectureName;
   $('concept-map').innerHTML = concepts.map((name, i) => {
     const state = i < learning.concept ? 'mastered' : i === learning.concept ? 'learning' : '';
     const label = state === 'mastered' ? '다룸' : state === 'learning' ? '다루는 중' : '점검 전';
@@ -311,7 +332,7 @@ function sourceChips(sources){
   return `<div class="mt-3 flex flex-wrap gap-1 items-start">${sources.map(s => {
     const short = escapeHtml(String(s.label || '').replace(lectureName + ' · ', ''));
     return `<details class="inline-block">
-      <summary class="text-[10px] px-2 py-1 rounded-full bg-[var(--sage-soft)] text-[var(--forest)] select-none transition-transform duration-200 hover:-translate-y-0.5">근거 · ${short}</summary>
+      <summary class="text-[10.5px] px-2.5 py-1 rounded-full bg-[var(--sage)] text-[var(--forest)] font-medium border border-[#a9cfa0] select-none cursor-pointer transition-transform duration-200 hover:-translate-y-0.5">근거 · ${short}</summary>
       <p class="text-[11px] leading-4 text-[var(--slate)] bg-white border border-[var(--line)] rounded-xl shadow-sm p-2 mt-1 max-w-[280px]">${escapeHtml(s.excerpt || '')}</p>
     </details>`;
   }).join('')}</div>`;
@@ -330,7 +351,7 @@ function inlineActions(){
   box.innerHTML = `
     <p class="text-[11px] text-[var(--slate)] mb-1">${initial ? '어디서 시작할까요?' : '이어서 물어볼 만한 것'}</p>
     <div class="border-t border-[var(--line)]">${options.map((o, i) =>
-      `<button data-choice="${i}" class="group w-full flex items-center justify-between gap-4 text-left px-1 py-3.5 border-b border-[var(--line)] text-[14.5px] text-[var(--graphite)] hover:text-[var(--forest)] transition-colors">
+      `<button data-choice="${i}" class="suggest-row group w-full flex items-center justify-between gap-4 text-left px-2.5 py-3.5 border-b border-[var(--line)] text-[14.5px] text-[var(--graphite)] hover:text-[var(--forest)] transition-colors">
         <span>${o}</span>
         <span class="text-[var(--slate)] group-hover:text-[var(--forest)] group-hover:translate-x-1 transition-transform duration-200">→</span>
       </button>`
@@ -560,6 +581,10 @@ function applySubject(id, name){
   $('tool-blank').classList.toggle('hidden', !SUBJECT_BLANK[subjectId]);
   $('concept-map').classList.toggle('hidden', !hasMap);
   $('concept-legend').classList.toggle('hidden', !hasMap);
+  // 헤더의 목표 한 줄. 정보이론 문구가 하드코딩되어 다른 과목에서도 그대로 뜨던 문제를 고친다.
+  $('context-detail').textContent = hasMap
+    ? `목표: ${concepts[0]}부터 순서대로 점검해 막힌 지점을 찾습니다.`
+    : `목표: 올린 자료를 근거로 부족한 선수개념을 찾습니다.`;
 }
 
 // 과목 선택/업로드는 별도 페이지(/start)에서. 여기선 현재 과목만 반영.

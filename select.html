@@ -24,6 +24,23 @@
   /* 지원 형식 칩: 좁은 화면에서 글자가 붙어 읽히지 않던 문제를 끊어서 보여준다 */
   .fmt-chip{display:inline-block;padding:3px 9px;border:1px solid var(--line);border-radius:9999px;
     font-size:11px;letter-spacing:.04em;color:var(--slate);background:#fff;white-space:nowrap}
+  /* 업로드 다이얼로그 */
+  .up-dialog{border:none;border-radius:22px;padding:26px 28px;width:min(92vw,860px);
+    background:var(--paper);color:var(--ink);box-shadow:0 40px 90px -30px rgba(17,17,17,.4)}
+  .up-dialog::backdrop{background:rgba(17,17,17,.45)}
+  .dropzone{min-height:230px;border:1.5px dashed var(--line);border-radius:16px;background:var(--surface);
+    display:flex;align-items:center;justify-content:center;padding:18px;cursor:pointer;transition:border-color .2s ease,background-color .2s ease}
+  .dropzone:hover,.dropzone.over{border-color:var(--forest);background:var(--sage-soft)}
+  .file-row{display:flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--line);
+    border-radius:12px;padding:9px 12px}
+  .file-row .nm{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file-row .sz{font-size:11px;color:var(--slate);white-space:nowrap}
+  .file-row button{color:var(--slate);font-size:16px;line-height:1;padding:0 2px}
+  .file-row button:hover{color:#b45d77}
+  .opt-row{display:block;font-size:12px;color:var(--slate);margin-bottom:5px}
+  .opt-input{width:100%;height:38px;padding:0 11px;border:1px solid var(--line);border-radius:10px;
+    background:var(--paper);font-size:13px;font-family:inherit;color:var(--ink)}
+  .opt-input:focus{outline:none;border-color:var(--forest)}
   .dot{display:inline-flex;gap:4px}.dot i{width:6px;height:6px;border-radius:50%;background:var(--sage);animation:blink 1.2s infinite}
   .dot i:nth-child(2){animation-delay:.2s}.dot i:nth-child(3){animation-delay:.4s}
   @keyframes blink{50%{opacity:.2}}
@@ -43,7 +60,70 @@
     <div id="grid" class="grid sm:grid-cols-2 gap-4 mt-8"></div>
 
     <p id="status" class="text-[13px] text-[var(--slate)] mt-6 min-h-[20px]" aria-live="polite"></p>
-    <input id="file" type="file" accept=".txt,.md,.pdf,.pptx" class="hidden">
+    <input id="file" type="file" accept=".txt,.md,.pdf,.pptx" class="hidden" multiple>
+  </main>
+
+  <!-- 업로드 다이얼로그: 왼쪽 파일 목록 + 오른쪽 옵션 -->
+  <dialog id="up-dialog" class="up-dialog">
+    <div class="flex items-start justify-between mb-5">
+      <div>
+        <h2 class="serif text-[22px]">강의자료로 시작하기</h2>
+        <p class="text-[12.5px] text-[var(--slate)] mt-1">올린 자료를 근거로 부족한 선수개념을 진단합니다.</p>
+      </div>
+      <button id="up-close" aria-label="닫기" class="text-[var(--slate)] text-[20px] leading-none px-2 hover:text-[var(--ink)]">×</button>
+    </div>
+
+    <div class="grid md:grid-cols-[1fr_260px] gap-6">
+      <!-- 왼쪽: 드롭존 + 파일 목록 -->
+      <div>
+        <div id="dropzone" class="dropzone">
+          <div id="dz-empty" class="text-center">
+            <div class="text-[26px] mb-2">＋</div>
+            <div class="text-[14px] font-medium">여기로 끌어다 놓거나 클릭해서 선택</div>
+            <div class="text-[12px] text-[var(--slate)] mt-1.5">PDF · PPTX · TXT · MD &nbsp;/&nbsp; 최대 5개 · 파일당 20MB 이하</div>
+          </div>
+          <ul id="file-list" class="hidden w-full space-y-2"></ul>
+        </div>
+        <p id="up-error" class="text-[12px] text-[#b45d77] mt-2 min-h-[16px]"></p>
+      </div>
+
+      <!-- 오른쪽: 옵션 -->
+      <div>
+        <div class="label mb-3">옵션 설정</div>
+
+        <label class="opt-row" for="opt-name">과목명</label>
+        <input id="opt-name" class="opt-input" placeholder="예: 경영통계학">
+
+        <label class="opt-row mt-4" for="opt-series">계열</label>
+        <select id="opt-series" class="opt-input">
+          <option value="humanities">인문·사회</option>
+          <option value="stem">이공</option>
+          <option value="">지정 안 함</option>
+        </select>
+
+        <label class="opt-row mt-4" for="opt-level">학습 단계</label>
+        <select id="opt-level" class="opt-input">
+          <option value="intro">1학년 전공기초</option>
+          <option value="advanced">상급 전공</option>
+          <option value="">지정 안 함</option>
+        </select>
+
+        <p class="text-[11.5px] text-[var(--slate)] leading-5 mt-3">
+          계열과 학습 단계는 진단 방식에 반영됩니다. 1학년 전공기초를 고르면
+          필요할 때 고교 수준 개념까지 내려가 확인합니다.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2 mt-6">
+      <button id="up-cancel" class="h-10 px-4 text-[13px] text-[var(--slate)] hover:text-[var(--ink)]">취소</button>
+      <button id="up-go" class="h-10 px-5 rounded-full bg-[var(--forest)] text-white text-[13px] font-medium disabled:opacity-35" disabled>
+        진단 시작
+      </button>
+    </div>
+  </dialog>
+
+  <div class="hidden">
   </main>
 
 <script>
@@ -82,7 +162,7 @@ fetch('/api/subjects').then(r=>r.json()).then(({subjects=[]})=>{
        <div class="text-[13px] text-[var(--slate)] mt-2">찾는 과목이 없어도 괜찮습니다</div>
        <div class="flex flex-wrap gap-2 mt-3">${chips}</div>`,
     'upload-card' + (wide ? ' sm:col-span-2 sm:min-h-[168px] sm:flex sm:items-center' : ''));
-  up.onclick = ()=>fileInp.click();
+  up.onclick = ()=>openDialog();   // 파일 선택창을 바로 열지 않고 옵션 다이얼로그를 띄운다
   grid.appendChild(up);
 }).catch(()=>{ statusEl.textContent='과목 목록을 불러오지 못했습니다. 서버를 확인하세요.'; });
 
@@ -148,20 +228,97 @@ async function extractPptx(file){
   return slides.sort((a,b)=>a[0]-b[0]).map(([i,t])=>`\n===== p${i} =====\n${t}`).join('');
 }
 
-fileInp.addEventListener('change', async ()=>{
-  const f = fileInp.files[0]; if(!f) return;
-  busy(`${f.name} 읽는 중…`);
+// ── 업로드 다이얼로그: 여러 파일 + 옵션 ──────────────────────────────
+const MAX_FILES = 5, MAX_MB = 20;
+const dlg = $('up-dialog'), dz = $('dropzone'), fileList = $('file-list'),
+      dzEmpty = $('dz-empty'), upErr = $('up-error'), upGo = $('up-go');
+let picked = [];   // 선택한 File 객체들
+
+function openDialog(){ upErr.textContent=''; dlg.showModal(); }
+$('up-close').onclick = $('up-cancel').onclick = () => dlg.close();
+dlg.addEventListener('click', e => { if(e.target === dlg) dlg.close(); });
+
+function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1)+'MB' : Math.ceil(b/1024)+'KB'; }
+
+function renderFiles(){
+  const has = picked.length > 0;
+  dzEmpty.classList.toggle('hidden', has);
+  fileList.classList.toggle('hidden', !has);
+  upGo.disabled = !has;
+  fileList.innerHTML = '';
+  picked.forEach((f, i) => {
+    const li = document.createElement('li');
+    li.className = 'file-row';
+    li.innerHTML = `<span class="nm">${f.name}</span><span class="sz">${fmtSize(f.size)}</span>
+                    <button type="button" aria-label="제거">×</button>`;
+    li.querySelector('button').onclick = e => { e.stopPropagation(); picked.splice(i,1); renderFiles(); };
+    fileList.appendChild(li);
+  });
+  // 과목명 기본값: 첫 파일 이름(확장자 제외)
+  const nameInp = $('opt-name');
+  if(has && !nameInp.value) nameInp.value = picked[0].name.replace(/\.[^.]+$/, '');
+  if(!has) nameInp.value = '';
+}
+
+function addFiles(list){
+  const errs = [];
+  for(const f of list){
+    if(picked.length >= MAX_FILES){ errs.push(`최대 ${MAX_FILES}개까지 올릴 수 있습니다.`); break; }
+    if(!/\.(pdf|pptx|txt|md)$/i.test(f.name)){ errs.push(`${f.name}: 지원하지 않는 형식입니다.`); continue; }
+    if(f.size > MAX_MB*1048576){ errs.push(`${f.name}: ${MAX_MB}MB를 넘습니다.`); continue; }
+    if(picked.some(p => p.name === f.name && p.size === f.size)) continue;   // 중복 제외
+    picked.push(f);
+  }
+  upErr.textContent = [...new Set(errs)].join(' ');
+  renderFiles();
+}
+
+dz.onclick = () => fileInp.click();
+fileInp.addEventListener('change', () => { addFiles(fileInp.files); fileInp.value=''; });
+['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('over'); }));
+dz.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+
+async function extractOne(f){
+  const lower = f.name.toLowerCase();
+  if(lower.endsWith('.pdf'))  return extractPdf(f);
+  if(lower.endsWith('.pptx')) return extractPptx(f);
+  return f.text();
+}
+
+upGo.onclick = async () => {
+  if(!picked.length) return;
+  upGo.disabled = true;
+  const multi = picked.length > 1;
   try{
-    const lower = f.name.toLowerCase();
-    const text = lower.endsWith('.pdf')  ? await extractPdf(f)
-               : lower.endsWith('.pptx') ? await extractPptx(f)
-               : await f.text();
-    const r = await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:f.name.replace(/\.[^.]+$/,''), text})});
+    const parts = [];
+    for(let i = 0; i < picked.length; i++){
+      const f = picked[i];
+      upErr.textContent = '';
+      busy(`${f.name} 읽는 중… (${i+1}/${picked.length})`);
+      let t = await extractOne(f);
+      // 파일이 여러 개면 쪽 마커에 파일 번호를 붙여 근거칩이 어느 자료인지 가리키게 한다
+      if(multi) t = t.replace(/===== p(\d+) =====/g, `===== p${i+1}.$1 =====`);
+      parts.push(`\n[자료 ${i+1}] ${f.name}\n${t}`);
+    }
+    busy(`인덱싱 중…`);
+    const body = {
+      name: ($('opt-name').value || picked[0].name.replace(/\.[^.]+$/, '')).trim(),
+      text: parts.join('\n'),
+      unit: multi ? '번째 자료' : '',
+      series: $('opt-series').value,
+      level: $('opt-level').value,
+    };
+    const r = await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j = await r.json(); if(j.error) throw new Error(j.error);
-    busy(`✓ ${j.chunks}개 청크 인덱싱됨 · 이동 중…`);
+    busy(`✓ 자료 ${picked.length}개 · ${j.chunks}개 청크 인덱싱됨 · 이동 중…`);
     location.href = '/chat';
-  }catch(e){ statusEl.textContent = '업로드 실패: ' + e.message; fileInp.value=''; }
-});
+  }catch(e){
+    upErr.textContent = '실패: ' + e.message;
+    statusEl.textContent = '';
+    upGo.disabled = false;
+  }
+};
 </script>
 </body>
 </html>
