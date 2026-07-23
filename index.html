@@ -65,10 +65,16 @@
   @media(max-width:767px){
     #left-panel{display:none}#context-detail{display:none}
     #left-panel.open{display:flex;position:fixed;top:0;left:0;bottom:0;z-index:50;width:min(80vw,288px);box-shadow:24px 0 60px rgba(17,17,17,.3)}
+    /* 드로어가 열렸을 때 뒤 배경을 덮어, 어디를 눌러도 닫히고 대화가 눌리지 않게 한다 */
+    #drawer-backdrop.show{display:block;position:fixed;inset:0;z-index:40;background:rgba(17,17,17,.35)}
+    /* 터치 타깃 최소 40px 확보 */
+    #menu-btn,#send{width:40px;height:40px}
   }
 </style>
 </head>
 <body class="h-screen flex text-[15px] overflow-hidden">
+
+  <div id="drawer-backdrop" class="hidden" aria-hidden="true"></div>
 
   <aside id="left-panel" class="w-72 shrink-0 border-r border-[var(--line)] flex flex-col bg-white">
     <div class="brand-accent"></div>
@@ -568,11 +574,21 @@ $('tool-explain').onclick = () => {
   inp.value = '제가 이해한 내용을 제 말로 설명하면, '; inp.focus();
   inp.setSelectionRange(inp.value.length, inp.value.length);
 };
-// 모바일: 사이드바 토글 (바깥 클릭 시 닫힘)
-$('menu-btn').onclick = e => { e.stopPropagation(); $('left-panel').classList.toggle('open'); };
+// 모바일: 사이드바 드로어. 배경을 덮고, 바깥 클릭·Esc·사이드바 액션 시 닫는다.
+function setDrawer(open){
+  $('left-panel').classList.toggle('open', open);
+  $('drawer-backdrop').classList.toggle('show', open);
+}
+$('menu-btn').onclick = e => { e.stopPropagation(); setDrawer(!$('left-panel').classList.contains('open')); };
+$('drawer-backdrop').onclick = () => setDrawer(false);
 document.addEventListener('click', e => {
   const lp = $('left-panel');
-  if(lp.classList.contains('open') && !lp.contains(e.target)) lp.classList.remove('open');
+  if(lp.classList.contains('open') && !lp.contains(e.target) && e.target !== $('menu-btn')) setDrawer(false);
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') setDrawer(false); });
+// 사이드바 안의 동작을 누르면 결과가 오른쪽 대화 영역에 나타나므로 드로어를 닫아준다.
+$('left-panel').addEventListener('click', e => {
+  if(e.target.closest('#newchat, #upload-btn, #reflect-open, #sidebar-list > div')) setDrawer(false);
 });
 
 const reflectionDialog = $('reflection-dialog');

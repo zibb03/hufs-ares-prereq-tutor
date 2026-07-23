@@ -102,7 +102,8 @@ def source_meta(hits):
         pages = re.findall(r"===== p(\d+(?:\.\d+)?)", text)
         if pages:
             lec, _, pg = pages[-1].partition(".")
-            label = f"{LECTURE_NAME} {lec}{LECTURE_UNIT} · {pg}쪽" if pg else f"{LECTURE_NAME} · {lec}쪽"
+            # "p3.7" → 3강 7쪽 (원문 보유 과목) / "p3" → 3강 (분석 자료만 보유한 과목)
+            label = f"{LECTURE_NAME} {lec}{LECTURE_UNIT} · {pg}쪽" if pg else f"{LECTURE_NAME} {lec}{LECTURE_UNIT}"
         else:
             label = f"{LECTURE_NAME} · 근거 {i}"
         if label in seen:
@@ -116,7 +117,8 @@ def humanize(text):
     """청크 안의 내부 페이지 마커를 모델이 그대로 인용해도 읽히는 형태로 바꾼다."""
     text = re.sub(r"=====\s*p(\d+)\.(\d+)\s*=====",
                   lambda m: f"[{m.group(1)}{LECTURE_UNIT} {m.group(2)}쪽]", text)
-    text = re.sub(r"=====\s*p(\d+)\s*=====", r"[\1쪽]", text)
+    text = re.sub(r"=====\s*p(\d+)[a-z]?\s*=====",
+                  lambda m: f"[{m.group(1)}{LECTURE_UNIT}]", text)
     return re.sub(r"=====\s*(.+?)\s*=====", r"[\1]", text)
 
 def answer(messages):
