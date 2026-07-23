@@ -163,7 +163,7 @@
             <button id="tool-explain" class="flex-1 border border-[var(--line)] py-2.5 text-[12px] hover:border-[var(--forest)] hover:text-[var(--forest)]">🗣️ 내 말로 설명</button>
           </div>
           <div class="input-row flex items-center gap-2 border border-[var(--line)] rounded-2xl px-4 py-2.5 focus-within:border-[var(--forest)]">
-            <textarea id="in" rows="1" placeholder="생각을 적어보세요…  (수식은 $ … $)" aria-label="답변 입력" class="flex-1 resize-none outline-none text-[15px] leading-6 max-h-32 bg-transparent"></textarea>
+            <textarea id="in" rows="1" placeholder="생각을 적어보세요…" aria-label="답변 입력" class="flex-1 resize-none outline-none text-[15px] leading-6 max-h-32 bg-transparent"></textarea>
             <button id="send" aria-label="답변 보내기" class="shrink-0 w-8 h-8 rounded-full bg-[var(--forest)] hover:bg-[var(--forest-dark)] text-white flex items-center justify-center disabled:opacity-30">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -208,7 +208,7 @@ const loadChats = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY
 const saveChats = () => localStorage.setItem(STORE_KEY, JSON.stringify(chats));
 const freshLearning = () => ({turn:0, hint:0, stage:0, concept:0, done:false});
 const LAST_KEY = 'ares_last_session';
-let subjectId = 'info';
+let subjectId = '';   // 서버의 현재 과목으로 채운다. 기본값을 박아두면 지난 세션이 엉뚱한 과목에 복원된다.
 let SUBJECTS = [];  // /api/subjects 로 채움
 const SUBJECT_CONCEPTS = {
   ling: ['기술문법 관점', '음소·변이음', '형태·통사 구조', '의미·맥락'],
@@ -218,7 +218,7 @@ const SUBJECT_CONCEPTS = {
   info: ['확률 기초', '확률과정·마르코프', '엔트로피·상호정보량', '부호화·채널'],
   ml: ['선형대수·기하', '베이지안 확률', '모델복잡도·손실', '체인룰·역전파'],
 };
-let concepts = SUBJECT_CONCEPTS.info;
+let concepts = [];
 const stages = ['진단', '선수개념 보충', '적용', '자기설명'];
 // 힌트 위계(관찰→연결→첫걸음)는 과목별로 저작. 업로드 과목은 LLM 구조화 출력이 필요해 도구를 숨긴다.
 const SUBJECT_HINTS = {
@@ -248,10 +248,10 @@ const SUBJECT_HINTS = {
     ['첫걸음 힌트', '가장 작은 예인 동전 하나($p,\\,1-p$)로 줄여서 이진 엔트로피부터 계산해보세요.']
   ],
 };
-let hintTexts = SUBJECT_HINTS.ling;
+let hintTexts = [];
 
 let chats = loadChats(), currentId = null, messages = [], learning = freshLearning();
-let lectureName = '언어학입문';   // 기본 과목(app.py PRESETS 첫 항목)과 일치
+let lectureName = '';   // /api/lecture 응답으로 채운다
 
 function escapeHtml(text){
   const el = document.createElement('span');
@@ -544,8 +544,9 @@ async function openChat(id){
   }
   currentId = id; messages = c.messages || []; learning = c.learning || freshLearning();
   renderSidebar(); renderLearning(); renderMessages();
-  // 업로드 과목은 서버에 다시 올릴 수 없으므로(원본 파일이 없음) 과목이 다르면 알린다
-  if(c.subjectId && c.subjectId !== subjectId){
+  // 업로드 과목은 서버에 다시 올릴 수 없으므로(원본 파일이 없음) 과목이 다르면 알린다.
+  // 과목 정보가 없는 옛 세션도 같이 알린다 — 지금 과목의 자료로 이어 답하기 때문이다.
+  if(c.subjectId !== subjectId){
     statusNote(`이 대화는 '${c.lectureName || '다른 과목'}'에서 진행됐습니다. 지금 과목은 '${lectureName}'입니다.`);
   }
 }
@@ -615,6 +616,9 @@ function applySubject(id, name){
   blankQ = SUBJECT_BLANK[subjectId] || SUBJECT_BLANK.ling;
   $('tool-hint').classList.toggle('hidden', !SUBJECT_HINTS[subjectId]);
   $('tool-blank').classList.toggle('hidden', !SUBJECT_BLANK[subjectId]);
+  // 수식 입력 안내는 실제로 수식을 쓰는 과목에만. 언어학입문에까지 "(수식은 $ … $)"가 뜨던 문제.
+  inp.placeholder = hintTexts.some(([, t]) => t.includes('$'))
+    ? '생각을 적어보세요…  (수식은 $ … $)' : '생각을 적어보세요…';
   $('concept-map').classList.toggle('hidden', !hasMap);
   $('concept-legend').classList.toggle('hidden', !hasMap);
   // 헤더의 목표 한 줄. 정보이론 문구가 하드코딩되어 다른 과목에서도 그대로 뜨던 문제를 고친다.
@@ -711,8 +715,10 @@ Promise.all([
   // 서버의 현재 과목과 다른 세션을 그대로 복원하면 한 화면에 여러 과목의 내용이 섞인다.
   const last = localStorage.getItem(LAST_KEY);
   const c = last ? chats.find(x => x.id === last) : null;
-  if(c && (!c.subjectId || c.subjectId === subjectId)) openChat(last);
-  else newChat();   // 과목이 바뀌었으면 새 세션으로 시작 (지난 대화는 사이드바에 남아 있다)
+  // 과목이 정확히 일치하는 세션만 자동 복원한다. subjectId가 없는 옛 세션까지 복원하던 탓에
+  // 회계원리를 골랐는데 AI정보이론 대화가 그대로 뜨는 일이 있었다. 지난 대화는 사이드바에 남는다.
+  if(c && c.subjectId && c.subjectId === subjectId) openChat(last);
+  else newChat();
 });
 </script>
 </body>
