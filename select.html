@@ -171,6 +171,15 @@ fetch('/api/subjects').then(r=>r.json()).then(({subjects=[]})=>{
   grid.appendChild(up);
 }).catch(()=>{ statusEl.textContent='과목 목록을 불러오지 못했습니다. 서버를 확인하세요.'; });
 
+// /chat로 이동한 뒤 뒤로 가기 하면 bfcache가 페이지를 그대로 복원해
+// "준비 중…" 문구와 비활성 버튼이 남는다. 복원 시점에 진행 표시를 정리한다.
+window.addEventListener('pageshow', e => {
+  if(!e.persisted) return;
+  statusEl.textContent = '';
+  upErr.textContent = '';
+  upGo.disabled = !picked.length;
+});
+
 async function choosePreset(id, name){
   busy(`${name} 준비 중…`);
   try{
