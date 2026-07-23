@@ -13,7 +13,9 @@
     --slate:#767676;--forest:#294843;--forest-dark:#1d3a34;--sage:#c9e3c2;--sage-soft:#eff7ed;--blush:#eaa9d0;
     --ease-out:cubic-bezier(.16,1,.3,1);--shadow-md:0 10px 26px -12px rgba(17,17,17,.18);}
   *{box-sizing:border-box}
-  body{background:var(--surface);color:var(--ink);font-family:"Noto Sans KR",-apple-system,system-ui,sans-serif;margin:0}
+  /* 한글 줄바꿈: 음절 단위로 끊기지 않게 어절 단위로 (keep-all) */
+  body{background:var(--surface);color:var(--ink);font-family:"Noto Sans KR",-apple-system,system-ui,sans-serif;margin:0;
+    word-break:keep-all;overflow-wrap:break-word}
   .serif{font-family:"Gowun Dodum","Noto Sans KR",sans-serif}
   .label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate)}
   .brand-accent{height:5px;background:linear-gradient(90deg,var(--forest) 0 34%,var(--sage) 34% 67%,var(--blush) 67% 100%)}
@@ -21,9 +23,6 @@
   .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--forest)}
   .card:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
   .upload-card{border-style:dashed}
-  /* 지원 형식 칩: 좁은 화면에서 글자가 붙어 읽히지 않던 문제를 끊어서 보여준다 */
-  .fmt-chip{display:inline-block;padding:3px 9px;border:1px solid var(--line);border-radius:9999px;
-    font-size:11px;letter-spacing:.04em;color:var(--slate);background:#fff;white-space:nowrap}
   /* 업로드 다이얼로그 */
   .up-dialog{border:none;border-radius:22px;padding:26px 28px;width:min(92vw,860px);
     background:var(--paper);color:var(--ink);box-shadow:0 40px 90px -30px rgba(17,17,17,.4)}
@@ -96,21 +95,34 @@
 
         <label class="opt-row mt-4" for="opt-series">계열</label>
         <select id="opt-series" class="opt-input">
-          <option value="humanities">인문·사회</option>
-          <option value="stem">이공</option>
+          <option value="lang">어문·인문</option>
+          <option value="social">사회과학</option>
+          <option value="biz">상경(경영·경제)</option>
+          <option value="stem">공학·자연과학</option>
+          <option value="edu">사범·교육</option>
           <option value="">지정 안 함</option>
         </select>
 
-        <label class="opt-row mt-4" for="opt-level">학습 단계</label>
-        <select id="opt-level" class="opt-input">
-          <option value="intro">1학년 전공기초</option>
-          <option value="advanced">상급 전공</option>
+        <label class="opt-row mt-4" for="opt-grade">학년</label>
+        <select id="opt-grade" class="opt-input">
+          <option value="y1">1학년</option>
+          <option value="y2">2학년</option>
+          <option value="y34">3~4학년</option>
+          <option value="grad">대학원</option>
+          <option value="">지정 안 함</option>
+        </select>
+
+        <label class="opt-row mt-4" for="opt-kind">과목 성격</label>
+        <select id="opt-kind" class="opt-input">
+          <option value="basic">전공기초(개론)</option>
+          <option value="deep">전공심화</option>
+          <option value="general">교양</option>
           <option value="">지정 안 함</option>
         </select>
 
         <p class="text-[11.5px] text-[var(--slate)] leading-5 mt-3">
-          계열과 학습 단계는 진단 방식에 반영됩니다. 1학년 전공기초를 고르면
-          필요할 때 고교 수준 개념까지 내려가 확인합니다.
+          세 항목은 진단 방식에 반영됩니다. 예를 들어 1학년을 고르면 필요할 때
+          고교 수준 개념까지 내려가 확인합니다.
         </p>
       </div>
     </div>
@@ -122,9 +134,6 @@
       </button>
     </div>
   </dialog>
-
-  <div class="hidden">
-  </main>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -145,9 +154,6 @@ fetch('/api/subjects').then(r=>r.json()).then(({subjects=[]})=>{
   // 2열 격자에서 빈칸이 남지 않게: 과목 수가 짝수면 업로드 카드를 한 줄 전체로,
   // 홀수면 마지막 줄의 빈 칸에 끼워 넣는다.
   const wide = subjects.length % 2 === 0;
-  // 지원 형식은 좁은 화면에서 글자가 붙어 읽기 어려우므로 칩으로 끊어서 보여준다.
-  const chips = ['PDF', 'PPTX', 'TXT', 'MD']
-    .map(x => `<span class="fmt-chip">${x}</span>`).join('');
   const up = card(wide
     ? `<div class="w-full flex items-center justify-between gap-5 flex-wrap">
          <div>
@@ -155,12 +161,11 @@ fetch('/api/subjects').then(r=>r.json()).then(({subjects=[]})=>{
            <div class="serif text-[24px] mt-1">+ 강의자료 올리기</div>
            <div class="text-[13px] text-[var(--slate)] mt-2">찾는 과목이 없어도 괜찮습니다</div>
          </div>
-         <div class="flex flex-wrap gap-2 shrink-0">${chips}</div>
+         <div class="text-[13px] text-[var(--slate)] shrink-0">여러 파일을 한 번에 올릴 수 있어요 →</div>
        </div>`
     : `<div class="label">내 자료</div>
        <div class="serif text-[22px] mt-1">+ 강의자료 올리기</div>
-       <div class="text-[13px] text-[var(--slate)] mt-2">찾는 과목이 없어도 괜찮습니다</div>
-       <div class="flex flex-wrap gap-2 mt-3">${chips}</div>`,
+       <div class="text-[13px] text-[var(--slate)] mt-2">여러 파일을 한 번에 올릴 수 있어요 →</div>`,
     'upload-card' + (wide ? ' sm:col-span-2 sm:min-h-[168px] sm:flex sm:items-center' : ''));
   up.onclick = ()=>openDialog();   // 파일 선택창을 바로 열지 않고 옵션 다이얼로그를 띄운다
   grid.appendChild(up);
@@ -307,7 +312,8 @@ upGo.onclick = async () => {
       text: parts.join('\n'),
       unit: multi ? '번째 자료' : '',
       series: $('opt-series').value,
-      level: $('opt-level').value,
+      grade: $('opt-grade').value,
+      kind: $('opt-kind').value,
     };
     const r = await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j = await r.json(); if(j.error) throw new Error(j.error);

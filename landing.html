@@ -23,7 +23,10 @@
   html{scroll-behavior:smooth}
   body{background:var(--paper);color:var(--ink);
     font-family:"Noto Sans KR",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
-    overflow-x:hidden}
+    overflow-x:hidden;
+    /* 한글은 기본값이 음절 단위로 끊겨 "만" 한 글자만 다음 줄로 넘어가는 일이 생긴다.
+       keep-all 로 어절(공백) 단위로만 줄바꿈하게 한다. */
+    word-break:keep-all;overflow-wrap:break-word}
   section[id]{scroll-margin-top:72px}
   .serif{font-family:"Gowun Dodum","Noto Sans KR",-apple-system,sans-serif}
   .label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--slate);font-weight:600}
@@ -217,8 +220,9 @@
         <p class="font-medium text-[var(--graphite)] mb-1">자료</p>
         <p>대학알리미 「대학 및 학과별 중도탈락 현황」 <b>2025년 8월 공시</b>(2024년 기준).</p>
         <p>계열별 수치는 동 공시를 집계한 언론 보도.</p>
-        <p>통계청 「2025년 초중고 사교육비조사」. 월소득 800만 원 이상 가구 학생 1인당 월평균 66만 2천 원,
-           300만 원 미만 19만 2천 원(<b>약 3.4배</b>). 참여율 84.9% 대 52.8%.</p>
+        <p>통계청 「2025년 초중고 사교육비조사」.</p>
+        <p>학생 1인당 월평균 사교육비는 월소득 800만 원 이상 가구 66만 2천 원, 300만 원 미만 가구 19만 2천 원(<b>약 3.4배</b>).</p>
+        <p>사교육 참여율은 84.9% 대 52.8%.</p>
       </div>
       <div class="grid sm:grid-cols-3 gap-6">
         <div class="card js-reveal-card">
@@ -226,21 +230,21 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-4 10.4c.6.55 1 1.35 1 2.1v.5h6v-.5c0-.75.4-1.55 1-2.1A6 6 0 0012 3z" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <h3 class="font-semibold text-[15.5px] mb-2 mt-4">이력에 안 보이는 결손</h3>
-          <p class="text-[13.5px] text-[var(--graphite)] leading-6">편입생·무전공 입학생·유학생·복학생은 모두 <b>‘선수과목을 이수한 학생’</b>으로 기록됩니다. 결손을 찾으려면 이력이 아니라 이해도를 직접 진단해야 합니다.</p>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">편입생·무전공 입학생·유학생·복학생은 모두 <b>‘선수과목을 이수한 학생’</b>으로 기록됩니다.<br>결손을 찾으려면 이력이 아니라 이해도를 직접 진단해야 합니다.</p>
         </div>
         <div class="card js-reveal-card">
           <div class="icon-badge" style="background:var(--blush)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <h3 class="font-semibold text-[15.5px] mb-2 mt-4">숨은 선수과목</h3>
-          <p class="text-[13.5px] text-[var(--graphite)] leading-6">한국외대 강의시간표를 조회해 보면 영어학과에 「영어데이터분석을위한통계」, 경영학전공에 「경영통계학」·「머신러닝」이 열려 있습니다. 그런데 <b>시간표에는 무엇을 먼저 들어야 하는지에 대한 안내가 없습니다.</b></p>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">한국외대 강의시간표에는 영어학과 「영어데이터분석을위한통계」, 경영학전공 「경영통계학」·「머신러닝」이 열려 있습니다.<br>그런데 <b>무엇을 먼저 들어야 하는지에 대한 안내는 없습니다.</b></p>
         </div>
         <div class="card js-reveal-card">
           <div class="icon-badge" style="background:var(--sage)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 19V9m6 10V5m6 14v-6" stroke="var(--forest)" stroke-width="1.8" stroke-linecap="round"/></svg>
           </div>
           <h3 class="font-semibold text-[15.5px] mb-2 mt-4">요구되는 건 ‘과정’이다</h3>
-          <p class="text-[13.5px] text-[var(--graphite)] leading-6">어느 전공 과제의 문항에는 <b>“간단하게라도 과정을 서술해주세요”</b>라고 적혀 있습니다. 정답만 알려주는 도구로는 이 요구를 채울 수 없습니다.</p>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">어느 전공 과제의 문항에는 <b>“간단하게라도 과정을 서술해주세요”</b>라고 적혀 있습니다.<br>정답만 알려주는 도구로는 이 요구를 채울 수 없습니다.</p>
         </div>
       </div>
     </div>
@@ -251,10 +255,10 @@
     <p class="label mb-2 js-reveal">SUBJECTS</p>
     <h2 class="serif text-[30px] sm:text-[34px] mb-3 js-reveal">지원 과목</h2>
     <p class="text-[var(--graphite)] text-[15px] leading-7 max-w-2xl mb-14 js-reveal">
-      과목마다 <b>선수개념의 종류와 위계가 전혀 다릅니다.</b> 그래서 실제 강의를 분석해 과목별로
-      숨은 선수개념·오개념·진단 질문을 단원 단위 지식베이스로 따로 구축했습니다.
-      <b>강의자료 본문은 담지 않고 저희가 작성한 분석만</b> 사용합니다(저작권 존중).
-      준비된 과목을 고르거나, 본인 강의자료를 올려 바로 시작할 수 있습니다.
+      과목마다 <b>선수개념의 종류와 위계가 전혀 다릅니다.</b>
+      그래서 실제 강의를 분석해 과목별로 숨은 선수개념·오개념·진단 질문을 단원 단위 지식베이스로 따로 구축했습니다.<br>
+      저작권을 위해 <b>강의자료 본문은 담지 않고, 저희가 작성한 분석만</b> 사용합니다.
+      준비된 과목을 고르거나 본인 강의자료를 올려 바로 시작할 수 있습니다.
     </p>
     <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
       <div class="card js-reveal-card">

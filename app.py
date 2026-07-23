@@ -112,28 +112,48 @@ def select_subject(sid):
     LECTURE_UNIT = p.get("unit", "강")
     _VECS, _VEC_FILE = None, HERE / p["vec"]
 
-# 업로드 과목에 붙는 추가 지시. 계열·학습 단계에 따라 진단을 되짚는 범위가 달라진다.
+# 업로드 과목에 붙는 추가 지시. 계열·학년·과목 성격에 따라 되짚는 범위와 질문 방식이 달라진다.
 EXTRA_RULE = ""
 
 SERIES_RULE = {
-    "humanities": "이 과목은 인문·사회계열이다. 선수개념이 수식이 아니라 관점·용어·분류 체계인 경우가 많으므로, "
-                  "계산을 묻기 전에 개념을 구분해서 말할 수 있는지부터 확인한다.",
-    "stem":       "이 과목은 이공계열이다. 수식과 기호가 나오면 학습자가 각 기호의 의미를 말할 수 있는지 먼저 확인한다.",
+    "lang":   "어문·인문계열 과목이다. 선수개념이 수식이 아니라 개념의 구분·용어 체계·분석 관점인 경우가 많다. "
+              "계산을 묻지 말고, 두 개념의 차이를 자기 말로 구분해 설명할 수 있는지부터 확인한다.",
+    "social": "사회과학계열 과목이다. 추상적 개념을 관찰 가능한 형태로 바꾸는 조작화, 자료 해석, 기초 통계가 자주 "
+              "전제된다. 용어를 아는지보다 그 개념을 무엇으로 측정하는지 말할 수 있는지를 확인한다.",
+    "biz":    "상경(경영·경제)계열 과목이다. 수식 자체는 단순한데 정의·시점·부호 규칙에서 막히는 경우가 많다. "
+              "'왜 이 시점에 이 금액을 인식하는가'처럼 판단 근거를 묻는 방향으로 진단한다.",
+    "stem":   "공학·자연과학계열 과목이다. 수식과 기호가 나오면 각 기호가 무엇을 가리키는지 말할 수 있는지 먼저 "
+              "확인하고, 미적분·선형대수·확률 같은 수학 선수과목의 결손을 함께 점검한다.",
+    "edu":    "사범·교육계열 과목이다. 교과내용 지식과 교육학 개념이 섞여 나오므로, 막힌 지점이 내용 지식 쪽인지 "
+              "교육학 개념 쪽인지 먼저 구분한다.",
 }
-LEVEL_RULE = {
-    "intro":    "1학년 전공기초 과목이다. 결손이 상위 과목 미이수로 나타나지 않고, 새 내용을 걸어둘 사전 지식이 "
-                "아예 없는 형태로 나타날 수 있다. 필요하면 고교 수준 개념(비율·함수·경우의 수·표 읽기)까지 내려가 확인한다.",
-    "advanced": "상급 전공 과목이다. 선행 전공과목에서 다룬 개념이 비어 있을 가능성이 크므로, 그 과목 수준의 "
-                "개념부터 짚어 올라간다.",
+GRADE_RULE = {
+    "y1":   "1학년 과목이다. 고등학교 교과에 대응물이 거의 없어, 결손이 상위 과목 미이수가 아니라 새 내용을 걸어둘 "
+            "사전 지식이 아예 없는 형태로 나타난다. 필요하면 고교 수준 개념(비율·백분율, 함수와 그래프, 경우의 수, "
+            "표·도수분포 읽기)까지 내려가 확인한다.",
+    "y2":   "2학년 과목이다. 1학년 개론 과목에서 다룬 개념이 비어 있을 가능성이 크므로 그 수준부터 확인한다.",
+    "y34":  "3~4학년 전공심화 과목이다. 선행 전공과목의 개념이 전제되므로, 어느 선행 과목의 개념이 비었는지 특정해 "
+            "그 지점부터 짚어 올라간다.",
+    "grad": "대학원 수준 과목이다. 학부 전공 전반이 전제되므로, 막힌 지점을 학부 어느 과목의 개념까지 되돌려야 "
+            "하는지 함께 밝힌다.",
+}
+KIND_RULE = {
+    "basic":   "전공기초(개론) 과목이다. 정의와 용어 자체가 선수개념이므로, 계산보다 정의를 자기 말로 말할 수 "
+               "있는지를 먼저 확인한다.",
+    "deep":    "전공심화 과목이다. 여러 선행 개념이 결합되어 나오므로, 막힌 부분을 갈래별로 분해해 어느 갈래가 "
+               "비었는지 확인한다.",
+    "general": "교양 과목이다. 전공 배경이 없는 학습자를 전제하고, 전문 용어가 나오면 먼저 풀어서 설명한 뒤 진단한다.",
 }
 
-def set_lecture(name, text, unit="", series="", level=""):
+def set_lecture(name, text, unit="", series="", grade="", kind=""):
     """업로드된 강의로 교체 (커스텀 과목, 다음 질의 때 지연 인덱싱)"""
     global CHUNKS, LECTURE_NAME, SUBJECT_ID, _VECS, _VEC_FILE, LECTURE_UNIT, EXTRA_RULE
     CHUNKS = chunk(text) or ["(빈 문서)"]
     LECTURE_NAME, SUBJECT_ID = name, "custom"
     LECTURE_UNIT = unit or "강"
-    EXTRA_RULE = " ".join(r for r in (SERIES_RULE.get(series), LEVEL_RULE.get(level)) if r)
+    EXTRA_RULE = " ".join(r for r in (SERIES_RULE.get(series),
+                                      GRADE_RULE.get(grade),
+                                      KIND_RULE.get(kind)) if r)
     _VECS, _VEC_FILE = None, None
 
 def lexical_topk(query, k):
@@ -229,8 +249,9 @@ class UploadIn(BaseModel):
     name: str
     text: str
     unit: str = ""      # 파일을 여러 개 올린 경우 근거칩 단위 표기(예: "번째 자료")
-    series: str = ""    # humanities | stem
-    level: str = ""     # intro | advanced
+    series: str = ""    # lang | social | biz | stem | edu
+    grade: str = ""     # y1 | y2 | y34 | grad
+    kind: str = ""      # basic | deep | general
 
 class SelectIn(BaseModel):
     id: str
@@ -253,7 +274,7 @@ def select(inp: SelectIn):
 
 @app.post("/api/upload")
 def upload(inp: UploadIn):
-    set_lecture(inp.name, inp.text, inp.unit, inp.series, inp.level)
+    set_lecture(inp.name, inp.text, inp.unit, inp.series, inp.grade, inp.kind)
     return {"id": SUBJECT_ID, "name": LECTURE_NAME, "chunks": len(CHUNKS)}
 
 @app.get("/api/lecture")
