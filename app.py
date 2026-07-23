@@ -244,6 +244,7 @@ app = FastAPI()
 
 class ChatIn(BaseModel):
     messages: list
+    subject: str = ""   # 화면이 보고 있는 과목. 서버 전역과 어긋나면 요청 기준으로 맞춘다.
 
 class UploadIn(BaseModel):
     name: str
@@ -258,6 +259,11 @@ class SelectIn(BaseModel):
 
 @app.post("/api/chat")
 def chat(inp: ChatIn):
+    # 다른 탭이 과목을 바꿔 전역 상태가 어긋난 경우 요청이 말하는 과목으로 되돌린다.
+    # ponytail: 전역 상태 자체는 그대로라 동시 요청은 여전히 경합함.
+    # 다중 사용자 배포 시 과목 컨텍스트를 요청별로 분리해야 한다.
+    if inp.subject and inp.subject != SUBJECT_ID and inp.subject in PRESETS:
+        select_subject(inp.subject)
     return answer(inp.messages)
 
 @app.get("/api/subjects")

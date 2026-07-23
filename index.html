@@ -143,9 +143,9 @@
     <header class="border-b border-[var(--line)] px-4 md:px-6 py-3 bg-white shadow-sm relative z-10">
       <div class="flex items-center gap-2 flex-wrap">
         <button id="menu-btn" aria-label="메뉴 열기" class="md:hidden w-8 h-8 border border-[var(--line)] text-[var(--graphite)] flex items-center justify-center shrink-0">☰</button>
-        <span id="lecture-badge" class="label !text-[var(--forest)] px-2 py-1 rounded-full bg-[var(--sage)]">언어학입문</span>
+        <span id="lecture-badge" class="label !text-[var(--forest)] px-2 py-1 rounded-full bg-[var(--sage)]"></span>
         <span class="text-[var(--silver)]">/</span>
-        <strong id="concept-title" class="text-[14px]">결합확률분포</strong>
+        <strong id="concept-title" class="text-[14px]"></strong>
         <span id="stage-badge" class="ml-auto text-[12px] text-[var(--forest)] font-medium">1단계 · 진단</span>
       </div>
       <div id="context-detail" class="text-[11px] text-[var(--slate)] mt-1"></div>
@@ -155,6 +155,7 @@
       <div id="log" class="thin-scroll flex-1 overflow-y-auto">
         <div class="max-w-3xl mx-auto px-4 md:px-8 py-9 space-y-8" id="log-inner"></div>
       </div>
+      <p id="sr-status" class="sr-only" aria-live="polite"></p>
       <footer class="bg-white">
         <div class="max-w-3xl mx-auto px-4 md:px-8 py-4">
           <div class="flex gap-2 mb-2">
@@ -247,6 +248,11 @@ const SUBJECT_HINTS = {
     ['연결 힌트', '엔트로피는 확률의 로그에 대한 기댓값입니다. 각 결과의 확률을 적고 그 옆에 $-\\log_2 p$를 써보세요.'],
     ['첫걸음 힌트', '가장 작은 예인 동전 하나($p,\\,1-p$)로 줄여서 이진 엔트로피부터 계산해보세요.']
   ],
+  ml: [
+    ['관찰 힌트', '지금 다루는 대상이 스칼라인지 벡터인지 행렬인지, 각각의 차원(모양)부터 적어보세요.'],
+    ['연결 힌트', '그 수식이 기하적으로 무엇을 하는지 그려보세요. 행렬 곱은 공간을 회전하고 늘리는 변환입니다.'],
+    ['첫걸음 힌트', '2차원 벡터 두 개로 줄여서 직접 계산하고, 좌표평면에 그림으로 그려보는 것부터 시작해보세요.']
+  ],
 };
 let hintTexts = [];
 
@@ -279,7 +285,10 @@ function renderMd(text){
   let src = String(text || '').replace(/\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$/g,
     m => { math.push(m); return `MJXMATH${math.length - 1}MJXEND`; });
   let html = marked.parse(src.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>'));
+  // 정화기가 CDN에서 로드되지 못했으면 마크다운을 포기하고 원문을 텍스트로 보여준다.
+  // 응답에는 업로드된 자료 내용이 섞여 들어오므로 무정화 innerHTML은 안 된다.
   if(window.DOMPurify) html = DOMPurify.sanitize(html);
+  else html = escapeHtml(src).replace(/\n/g, '<br>');
   // 수식 안의 < > &는 이스케이프해 innerHTML 주입 방지 (KaTeX는 textContent로 원문 delimiter를 읽음)
   return html.replace(/MJXMATH(\d+)MJXEND/g, (_, i) => escapeHtml(math[+i]));
 }
@@ -387,6 +396,7 @@ function hintCard(m){
 
 // 점진 힌트를 대화 흐름 안에 한 단계씩. messages에 저장돼 새로고침에도 유지. 3단계 후엔 튜터에게 유도.
 function revealHint(){
+  if(!hintTexts.length) return;   // 과목 확인 실패 등으로 힌트가 없는 상태의 방어
   if(learning.hint >= 3){
     if(learning.hint === 3){
       learning.hint = 4; persistCurrent(false);
@@ -439,6 +449,13 @@ const SUBJECT_BLANK = {
     retry: '엔트로피는 $-\\sum p\\log_2 p$ 입니다. $p=1/2$일 때 $-\\log_2(1/2)$이 얼마인지 먼저 계산해보세요. ',
     next: '그럼 앞면이 나올 확률이 0.9인 동전은 엔트로피가 1보다 클까요, 작을까요? 이유까지 본인의 말로 설명해 주세요.'
   },
+  ml: {
+    pre: '벡터 $(1,0)$과 $(0,1)$의 내적은',
+    post: '입니다.', answer: '0', ph: '직접 입력',
+    ok: v => /^\s*0(\.0*)?\s*$/.test(v) || /영|zero/i.test(v),
+    retry: '내적은 대응하는 성분끼리 곱해 더한 값입니다. $1\\times 0 + 0\\times 1$을 계산해보세요. ',
+    next: '내적이 0이라는 것은 두 벡터가 기하적으로 어떤 관계라는 뜻일까요? PCA에서 주축들이 왜 이 관계여야 하는지까지 이어서 설명해 주세요.'
+  },
 };
 let blankQ = SUBJECT_BLANK.ling;
 function blankCard(m){
@@ -449,7 +466,7 @@ function blankCard(m){
     <p class="mt-2">${blankQ.pre}
       ${m.done
         ? `<span class="blank filled">${escapeHtml(m.val || blankQ.answer)}</span>`
-        : `<input data-blank-in class="blank bg-transparent outline-none" style="width:100px" placeholder="${blankQ.ph}">
+        : `<input data-blank-in class="blank bg-transparent outline-none" style="width:${Math.max(90, blankQ.ph.length * 15)}px" placeholder="${blankQ.ph}">
            <button data-blank-ok class="ml-1 px-2 py-0.5 border border-[var(--forest)] text-[var(--forest)] text-[11px] hover:bg-[var(--sage-soft)]">확인</button>`}
       ${blankQ.post}</p>
     ${m.done
@@ -519,7 +536,8 @@ function advanceLearning(){
   if(learning.turn >= 2) learning.stage = 1;
   if(learning.turn >= 4) learning.stage = 2;
   if(learning.turn >= 6) learning.stage = 3;
-  learning.concept = Math.min(Math.floor(learning.turn / 2), concepts.length - 1);
+  // 업로드 과목은 concepts가 비어 있어 -1이 되지 않게 막는다 (프리셋 복귀 시 concepts[-1] 참조 방지)
+  learning.concept = concepts.length ? Math.min(Math.floor(learning.turn / 2), concepts.length - 1) : 0;
   renderLearning();
 }
 
@@ -580,26 +598,40 @@ function persistCurrent(create = true){
 
 async function sendText(text){
   const t = (text ?? inp.value).trim();
-  if(!t || btn.disabled) return;
+  if(!t || btn.disabled) return false;
   inp.value = ''; inp.style.height = 'auto';
   row('user').textContent = t;
-  messages.push({role:'user', text:t}); persistCurrent();
+  const mine = {role:'user', text:t};
+  messages.push(mine); persistCurrent();
   btn.disabled = true;
   const placeholder = typingRow();
   try{
     const r = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({messages:messages.filter(m => m.role === 'user' || m.role === 'assistant').map(({role,text}) => ({role,text}))})
+      // 화면이 보고 있는 과목을 함께 보낸다. 서버 전역 과목에만 의존하면
+      // 다른 탭이 과목을 바꿨을 때 엉뚱한 과목의 근거로 답이 온다.
+      body:JSON.stringify({subject: subjectId,
+        messages:messages.filter(m => m.role === 'user' || m.role === 'assistant').map(({role,text}) => ({role,text}))})
     });
     if(!r.ok) throw new Error(`서버 응답 ${r.status}`);
     const j = await r.json();
     placeholder.remove();
     messages.push({role:'assistant', text:j.reply || '(응답 없음)', sources:j.sources || []});
     advanceLearning(); persistCurrent(); renderMessages();
+    $('sr-status').textContent = '튜터가 새 답변을 보냈습니다.';   // 로그 전체를 다시 그려서 live region은 따로 둔다
+    return true;
   }catch(e){
     placeholder.remove();
     const b = row('assistant');
-    b.innerHTML = `<span class="text-red-600">응답을 불러오지 못했어요. ${escapeHtml(e.message)}</span>`;
+    // 응답 없는 내 메시지가 이력에 영구히 남지 않게, 재시도 시 그 메시지를 빼고 같은 내용으로 다시 보낸다
+    b.innerHTML = `<span class="text-red-600">응답을 불러오지 못했어요. ${escapeHtml(e.message)}</span>
+      <button data-retry class="ml-2 underline underline-offset-2 text-[13px] text-[var(--forest)]">다시 시도</button>`;
+    b.querySelector('[data-retry]').onclick = () => {
+      const i = messages.indexOf(mine);
+      if(i > -1) messages.splice(i, 1);
+      persistCurrent(false); renderMessages(); sendText(t);
+    };
+    return false;
   }finally{
     btn.disabled = false; inp.focus(); scrollBottom();
   }
@@ -617,7 +649,8 @@ function applySubject(id, name){
   $('tool-hint').classList.toggle('hidden', !SUBJECT_HINTS[subjectId]);
   $('tool-blank').classList.toggle('hidden', !SUBJECT_BLANK[subjectId]);
   // 수식 입력 안내는 실제로 수식을 쓰는 과목에만. 언어학입문에까지 "(수식은 $ … $)"가 뜨던 문제.
-  inp.placeholder = hintTexts.some(([, t]) => t.includes('$'))
+  const bq = SUBJECT_BLANK[subjectId];
+  inp.placeholder = hintTexts.some(([, t]) => t.includes('$')) || (bq && /\$/.test(bq.pre + bq.retry))
     ? '생각을 적어보세요…  (수식은 $ … $)' : '생각을 적어보세요…';
   $('concept-map').classList.toggle('hidden', !hasMap);
   $('concept-legend').classList.toggle('hidden', !hasMap);
@@ -663,8 +696,11 @@ $('reflection-form').addEventListener('submit', e => {
   e.preventDefault();
   const data = new FormData(e.currentTarget);
   const text = `오늘 학습을 마치며 정리해볼게요.\n- 오늘 배운 것: ${$('learned').value.trim()}\n- 아직 헷갈리는 것: ${$('confused').value.trim()}\n- 자기평가: ${data.get('confidence')}\n이 성찰을 짧게 확인해주고, 다음에 이어서 볼 한 가지만 제안해 주세요.`;
-  learning.done = true;  // 세션 완료 상태 → 응답 후 마무리 박스 표시
-  reflectionDialog.close(); e.currentTarget.reset(); sendText(text);
+  reflectionDialog.close(); e.currentTarget.reset();
+  // 완료 확정은 전송이 성공한 뒤에. 미리 확정하면 전송이 실패해도 세션이 '완료'로 저장된다.
+  sendText(text).then(ok => {
+    if(ok){ learning.done = true; persistCurrent(false); renderMessages(); }
+  });
 });
 
 if(window.pdfjsLib){
@@ -709,7 +745,10 @@ Promise.all([
   fetch('/api/lecture').then(r => r.json()).catch(() => ({})),
 ]).then(([subs, cur]) => {
   SUBJECTS = subs.subjects || [];
-  if(cur.name) applySubject(cur.id, cur.name);
+  // 과목 확인이 실패해도 항상 불러 도구 노출 상태를 정리한다.
+  // 안 부르면 힌트 버튼은 보이는데 hintTexts가 비어 있어 클릭 시 크래시했다.
+  applySubject(cur.id, cur.name);
+  if(!cur.name) statusNote('서버에서 과목 정보를 불러오지 못했습니다. 새로고침해 주세요.');
 
   // 마지막 세션 복원은 과목을 확인한 뒤에 한다.
   // 서버의 현재 과목과 다른 세션을 그대로 복원하면 한 화면에 여러 과목의 내용이 섞인다.
