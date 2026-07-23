@@ -93,6 +93,7 @@ PRESETS = {
     "acct":   {"name": "회계원리",           "txt": "lecture_acct.txt",   "vec": "lecture_acct_vecs.npy",  "unit": "장"},
     "info":   {"name": "AI정보이론",         "txt": "lecture_info.txt",   "vec": "lecture_info_vecs.npy"},
     "ml":     {"name": "머신러닝",           "txt": "lecture_ml.txt",     "vec": "lecture_ml_vecs.npy"},
+    "ailit":  {"name": "AI 활용 리터러시",   "txt": "lecture_ailit.txt",  "vec": "lecture_ailit_vecs.npy", "unit": "주제"},
 }
 
 # 강의 원문은 저작권 때문에 배포본에 포함되지 않을 수 있다. 파일이 없는 과목은 목록에서 숨긴다.
