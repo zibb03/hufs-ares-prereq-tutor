@@ -599,6 +599,9 @@ window.addEventListener('load', function initSiteMotion(){
   if (!reduced && window.matchMedia('(hover:hover)').matches) {
     document.querySelectorAll('.tilt-card').forEach(function(card){
       card.addEventListener('mousemove', function(e){
+        // 등장 애니메이션이 같은 transform을 쓰는 중에는 건드리지 않는다.
+        // 둘이 서로 덮어써서 카드가 올라간 채로 굳는 문제가 있었다.
+        if (window.gsap && gsap.isTweening(card)) return;
         var r = card.getBoundingClientRect();
         var px = (e.clientX - r.left) / r.width - 0.5;
         var py = (e.clientY - r.top) / r.height - 0.5;
@@ -616,9 +619,11 @@ window.addEventListener('load', function initSiteMotion(){
   // 읽혀 헤더가 강조된 것처럼 보인다. 첫 화면은 즉시 완성된 상태로 보여준다.
 
   // 스크롤 리빌: 문단/라벨류
+  // clearProps: 애니메이션이 끝나면 인라인 transform을 지운다.
+  // 안 지우면 인라인 스타일이 CSS의 .card:hover{transform:...} 를 계속 덮어써 호버 효과가 죽는다.
   gsap.utils.toArray('.js-reveal').forEach(function(el){
     gsap.from(el, {
-      opacity: 0, y: 24, duration: .8, ease: 'power3.out',
+      opacity: 0, y: 24, duration: .8, ease: 'power3.out', clearProps: 'transform',
       scrollTrigger: { trigger: el, start: 'top 85%', once: true }
     });
   });
@@ -632,7 +637,7 @@ window.addEventListener('load', function initSiteMotion(){
   });
   Object.values(cardGroups).forEach(function(group){
     gsap.from(group, {
-      opacity: 0, y: 36, duration: .8, ease: 'power3.out', stagger: .12,
+      opacity: 0, y: 36, duration: .8, ease: 'power3.out', stagger: .12, clearProps: 'transform',
       scrollTrigger: { trigger: group[0], start: 'top 85%', once: true }
     });
   });
