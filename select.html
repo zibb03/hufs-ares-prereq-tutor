@@ -138,6 +138,8 @@
 <script>
 const $ = id => document.getElementById(id);
 const grid = $('grid'), statusEl = $('status'), fileInp = $('file');
+// 파일명은 사용자 입력이므로 innerHTML에 넣기 전에 반드시 escape (스크립트 파일명 방지)
+const esc = s => { const el = document.createElement('span'); el.textContent = s; return el.innerHTML; };
 const busy = t => statusEl.innerHTML = `<span class="dot"><i></i><i></i><i></i></span> ${t}`;
 
 // 과목 카드 렌더
@@ -184,6 +186,7 @@ async function choosePreset(id, name){
   busy(`${name} 준비 중…`);
   try{
     const r = await fetch('/api/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    if(!r.ok) throw new Error(`서버 응답 ${r.status}`);
     const j = await r.json(); if(j.error) throw new Error(j.error);
     location.href = '/chat';
   }catch(e){ statusEl.textContent = '과목 전환 실패: ' + e.message; }
@@ -234,7 +237,8 @@ async function extractPptx(file){
     const xml = dec.decode(method === 0 ? raw : await inflateRaw(raw));
     // <a:t>…</a:t> 안이 실제 텍스트다
     const text = [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)]
-      .map(x => x[1].replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&'))
+      .map(x => x[1].replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'")
+        .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(n)).replace(/&amp;/g,'&'))
       .join(' ').replace(/\s+/g,' ').trim();
     if(text) slides.push([Number(m[1]), text]);
   }
@@ -247,10 +251,20 @@ const MAX_FILES = 5, MAX_MB = 20;
 const dlg = $('up-dialog'), dz = $('dropzone'), fileList = $('file-list'),
       dzEmpty = $('dz-empty'), upErr = $('up-error'), upGo = $('up-go');
 let picked = [];   // 선택한 File 객체들
+// 과목명이 자동 채움 상태인지 추적. 사용자가 타이핑하면 파일 추가·제거가 값을 덮어쓰지 않는다.
+const nameInp = $('opt-name');
+let nameAuto = true;
+nameInp.addEventListener('input', () => { nameAuto = nameInp.value === ''; });
 
 function openDialog(){ upErr.textContent=''; dlg.showModal(); }
 $('up-close').onclick = $('up-cancel').onclick = () => dlg.close();
-dlg.addEventListener('click', e => { if(e.target === dlg) dlg.close(); });
+// 다이얼로그 안쪽 여백·컬럼 사이 틈을 클릭해도 e.target이 dlg라 닫혀버린다.
+// 클릭 좌표가 다이얼로그 사각형 밖(=백드롭)일 때만 닫는다.
+dlg.addEventListener('click', e => {
+  if(e.target !== dlg) return;
+  const r = dlg.getBoundingClientRect();
+  if(e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
+});
 
 function fmtSize(b){ return b >= 1048576 ? (b/1048576).toFixed(1)+'MB' : Math.ceil(b/1024)+'KB'; }
 
@@ -263,15 +277,14 @@ function renderFiles(){
   picked.forEach((f, i) => {
     const li = document.createElement('li');
     li.className = 'file-row';
-    li.innerHTML = `<span class="nm">${f.name}</span><span class="sz">${fmtSize(f.size)}</span>
+    li.innerHTML = `<span class="nm">${esc(f.name)}</span><span class="sz">${fmtSize(f.size)}</span>
                     <button type="button" aria-label="제거">×</button>`;
     li.querySelector('button').onclick = e => { e.stopPropagation(); picked.splice(i,1); renderFiles(); };
     fileList.appendChild(li);
   });
-  // 과목명 기본값: 첫 파일 이름(확장자 제외)
-  const nameInp = $('opt-name');
-  if(has && !nameInp.value) nameInp.value = picked[0].name.replace(/\.[^.]+$/, '');
-  if(!has) nameInp.value = '';
+  // 과목명 기본값: 첫 파일 이름(확장자 제외). 사용자가 직접 입력한 값은 건드리지 않는다.
+  if(has && nameAuto) nameInp.value = picked[0].name.replace(/\.[^.]+$/, '');
+  if(!has && nameAuto) nameInp.value = '';
 }
 
 function addFiles(list){
@@ -295,7 +308,10 @@ dz.addEventListener('drop', e => addFiles(e.dataTransfer.files));
 
 async function extractOne(f){
   const lower = f.name.toLowerCase();
-  if(lower.endsWith('.pdf'))  return extractPdf(f);
+  if(lower.endsWith('.pdf')){
+    if(!window.pdfjsLib) throw new Error('PDF 처리기를 불러오지 못했습니다. 네트워크 확인 후 새로고침해 주세요.');
+    return extractPdf(f);
+  }
   if(lower.endsWith('.pptx')) return extractPptx(f);
   return f.text();
 }
@@ -309,7 +325,7 @@ upGo.onclick = async () => {
     for(let i = 0; i < picked.length; i++){
       const f = picked[i];
       upErr.textContent = '';
-      busy(`${f.name} 읽는 중… (${i+1}/${picked.length})`);
+      busy(`${esc(f.name)} 읽는 중… (${i+1}/${picked.length})`);
       let t = await extractOne(f);
       // 파일이 여러 개면 쪽 마커에 파일 번호를 붙여 근거칩이 어느 자료인지 가리키게 한다
       if(multi) t = t.replace(/===== p(\d+) =====/g, `===== p${i+1}.$1 =====`);

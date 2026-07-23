@@ -12,7 +12,6 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
   :root{
     --paper:#fff;--surface:#f5f5f4;--line:#e6e6e4;--ink:#111;--graphite:#3a3a3a;
@@ -127,9 +126,7 @@
 
     <div class="px-5 py-4 space-y-2 border-b border-[var(--line)]">
       <button id="newchat" class="w-full h-9 rounded-full border border-[var(--forest)] text-[var(--forest)] text-[13px] font-medium hover:bg-[var(--forest)] hover:text-white transition-colors">+ 새 학습 세션</button>
-      <button id="upload-btn" class="w-full h-9 rounded-full border border-[var(--line)] text-[13px] text-[var(--graphite)] hover:border-[var(--forest)]">강의자료 올리기</button>
-      <input id="file" type="file" accept=".txt,.md,.pdf" class="hidden">
-      <p id="upload-status" class="text-[11px] text-[var(--slate)]" aria-live="polite"></p>
+      <button id="upload-btn" class="w-full h-9 rounded-full border border-[var(--line)] text-[13px] text-[var(--graphite)] hover:border-[var(--forest)]">과목 바꾸기 · 자료 올리기</button>
     </div>
 
     <div class="px-5 pt-4"><span class="label">지난 학습</span></div>
@@ -703,41 +700,9 @@ $('reflection-form').addEventListener('submit', e => {
   });
 });
 
-if(window.pdfjsLib){
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-}
-async function extractPdfText(file){
-  const doc = await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
-  let text = '';
-  for(let i = 1; i <= doc.numPages; i++){
-    const content = await (await doc.getPage(i)).getTextContent();
-    text += `\n===== p${i} =====\n` + content.items.map(it => it.str).join(' ');
-  }
-  return text;
-}
-
-const fileInp = $('file');
-$('upload-btn').onclick = () => fileInp.click();
-fileInp.addEventListener('change', async () => {
-  const file = fileInp.files[0];
-  if(!file) return;
-  $('upload-status').textContent = '읽는 중…'; $('upload-btn').disabled = true;
-  try{
-    const text = file.name.toLowerCase().endsWith('.pdf') ? await extractPdfText(file) : await file.text();
-    const r = await fetch('/api/upload', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:file.name.replace(/\.[^.]+$/, ''), text})
-    });
-    if(!r.ok) throw new Error(`서버 응답 ${r.status}`);
-    const j = await r.json();
-    applySubject(j.id, j.name); $('upload-status').textContent = `✓ ${j.chunks}개 청크 인덱싱됨`;
-    newChat();
-  }catch(e){
-    $('upload-status').textContent = '업로드 실패: ' + e.message;
-  }finally{
-    $('upload-btn').disabled = false; fileInp.value = '';
-  }
-});
+// 업로드는 /start의 다이얼로그로 통일 (pptx·다중 파일·3축 옵션 지원).
+// 여기 자체 업로드는 pdf 단일 파일만 됐고 옵션도 없어 기능이 어긋나 있었다.
+$('upload-btn').onclick = () => location.href = '/start';
 
 // 과목 목록 + 현재 과목 로드
 Promise.all([
