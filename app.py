@@ -14,18 +14,55 @@ if _envfile.exists():
             os.environ.setdefault(k.strip(), v.strip())
 
 SYSTEM = (HERE / "system_prompt.md").read_text(encoding="utf-8")
-GEN_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+# gemini-2.5-flash는 신규 프로젝트에서 404(더 이상 제공 안 됨)가 난다.
+# gemini-3-flash-preview는 기존·신규 키 모두에서 동작해 이쪽을 기본값으로 둔다.
+GEN_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3-flash-preview")
 EMB_MODEL = "gemini-embedding-001"
 
+def api_keys():
+    """GEMINI_API_KEY, GEMINI_API_KEY_2, _3 … 순서로 사용 가능한 키를 모은다."""
+    keys, i = [os.environ.get("GEMINI_API_KEY")], 2
+    while os.environ.get(f"GEMINI_API_KEY_{i}"):
+        keys.append(os.environ[f"GEMINI_API_KEY_{i}"]); i += 1
+    return [k for k in keys if k]
+
+_KEY_IDX = 0     # 마지막으로 성공한 키. 매 호출마다 죽은 키를 다시 때리지 않기 위해 기억한다.
+_KEY_DEAD = set() # 403(프로젝트 차단)처럼 복구되지 않는 키는 이후 호출에서 건너뛴다.
+
 def gemini(path, body):
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
+    """키를 여러 개 두고 실패 시 다음 키로 넘어간다.
+
+    무료 등급에서 실제로 마주친 상황들:
+      429 RESOURCE_EXHAUSTED  일일/분당 한도 초과 → 다른 키로 재시도(시간이 지나면 복구)
+      404 NOT_FOUND           그 키의 프로젝트에서 해당 모델을 쓸 수 없음 → 다른 키로 재시도
+      403 PERMISSION_DENIED   프로젝트 자체가 차단됨 → 복구되지 않으므로 그 키를 버린다
+    """
+    global _KEY_IDX
+    keys = api_keys()
+    if not keys:
         raise RuntimeError("GEMINI_API_KEY 환경변수를 설정하세요 (aistudio.google.com 무료 발급)")
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/{path}?key={key}",
-        data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req) as r:
-        return json.loads(r.read())
+    usable = [i for i in range(len(keys)) if i not in _KEY_DEAD] or list(range(len(keys)))
+    order = [i for i in usable if i >= _KEY_IDX] + [i for i in usable if i < _KEY_IDX]
+    last_err = None
+    for i in order:
+        req = urllib.request.Request(
+            f"https://generativelanguage.googleapis.com/v1beta/{path}?key={keys[i]}",
+            data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req) as r:
+                if i != _KEY_IDX:
+                    print(f"[gemini] {i+1}번 키로 전환")
+                _KEY_IDX = i
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            if e.code == 403:
+                if i not in _KEY_DEAD:
+                    print(f"[gemini] {i+1}번 키 사용 불가(프로젝트 접근 거부) — 이후 건너뜀")
+                _KEY_DEAD.add(i)
+            elif e.code not in (429, 404):
+                raise
+            last_err = e
+    raise last_err
 
 def embed(text):
     r = gemini(f"models/{EMB_MODEL}:embedContent",
