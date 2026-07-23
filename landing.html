@@ -76,9 +76,6 @@
   }
   .reveal-line{display:block;overflow:hidden}
   .reveal-line span{display:inline-block;will-change:transform}
-  .scroll-cue{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:2;color:#fff;opacity:.75}
-  .scroll-cue svg{animation:cue-bounce 1.8s ease-in-out infinite}
-  @keyframes cue-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
   @media (max-width:768px){
     .hero{min-height:680px;clip-path:polygon(0 0,100% 0,100% 97%,0 100%)}
     .hero .wedge--forest{clip-path:polygon(0 0,100% 0,55% 100%,0 100%)}
@@ -86,7 +83,7 @@
     .hero .wedge--blush{display:none}
   }
   #hero-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;opacity:.92}
-  @media (prefers-reduced-motion: reduce){ #hero-canvas{display:none} .scroll-cue svg{animation:none} }
+  @media (prefers-reduced-motion: reduce){ #hero-canvas{display:none} }
 
   /* 카드 공통 */
   .card{position:relative;border:1px solid var(--line);border-radius:20px;padding:28px;background:#fff;
@@ -202,9 +199,6 @@
         </div>
       </div>
     </div>
-    <a href="#why" class="scroll-cue" aria-label="아래로 스크롤">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 4v16m0 0l6-6m-6 6l-6-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </a>
   </section>
 
   <!-- 왜 만들었나 -->
@@ -219,11 +213,13 @@
         학업 중단은 의지의 문제가 아니라 앞 단계 개념이 비어 다음 단계를 따라갈 수 없는
         <b>누적 구조</b>의 결과입니다. 그런데 이 결손은 수강 이력에 드러나지 않아 아무도 짚어주지 않습니다.
       </p>
-      <p class="text-[12px] text-[var(--slate)] leading-6 max-w-2xl mb-14 js-reveal">
-        자료 · 대학알리미 「대학 및 학과별 중도탈락 현황」 <b>2025년 8월 공시</b>(2024년 기준). 계열별 수치는 동 공시를 집계한 언론 보도.
-        사교육비 격차는 통계청 「2025년 초중고 사교육비조사」 — 월소득 800만 원 이상 가구 학생 1인당 월평균 66만 2천 원,
-        300만 원 미만 19만 2천 원(<b>약 3.4배</b>), 참여율 84.9% 대 52.8%.
-      </p>
+      <div class="text-[12px] text-[var(--slate)] leading-6 max-w-2xl mb-14 js-reveal">
+        <p class="font-medium text-[var(--graphite)] mb-1">자료</p>
+        <p>대학알리미 「대학 및 학과별 중도탈락 현황」 <b>2025년 8월 공시</b>(2024년 기준).</p>
+        <p>계열별 수치는 동 공시를 집계한 언론 보도.</p>
+        <p>통계청 「2025년 초중고 사교육비조사」. 월소득 800만 원 이상 가구 학생 1인당 월평균 66만 2천 원,
+           300만 원 미만 19만 2천 원(<b>약 3.4배</b>). 참여율 84.9% 대 52.8%.</p>
+      </div>
       <div class="grid sm:grid-cols-3 gap-6">
         <div class="card js-reveal-card">
           <div class="icon-badge" style="background:var(--forest)">
@@ -355,7 +351,8 @@
   </section>
 
   <!-- 근거 -->
-  <section id="evidence" class="max-w-6xl mx-auto px-6 py-28 overflow-hidden">
+  <!-- 아래 팀 섹션과 붙여 보이도록 하단 여백을 줄인다 (섹션 py-28 이 두 번 겹쳐 간격이 과했다) -->
+  <section id="evidence" class="max-w-6xl mx-auto px-6 pt-28 pb-12 overflow-hidden">
     <div class="blob blob-1 js-parallax" data-speed="0.12"></div>
     <div class="section-inner">
       <p class="label mb-2 js-reveal">EVIDENCE</p>
@@ -400,14 +397,16 @@
           <p class="text-[12px] text-[var(--slate)] mt-3">→ 세션 종료 시 성찰 단계 필수화</p>
         </div>
       </div>
-      <p class="text-[12px] text-[var(--slate)] leading-6 mt-16 pt-6 border-t border-[var(--line)] js-reveal">
-        설문: 한국외대 재학생 대상 익명 설문 14문항(분석표본 42명) · 통계: 대학알리미 2025년 공시, 통계청 초중고 사교육비조사
-      </p>
+      <div class="text-[12px] text-[var(--slate)] leading-6 mt-12 pt-6 border-t border-[var(--line)] js-reveal">
+        <p class="font-medium text-[var(--graphite)] mb-1">자료</p>
+        <p>한국외국어대학교 재학생 대상 익명 설문 14문항(분석표본 42명).</p>
+        <p>학습과학 문헌은 Intelligent Tutoring Systems 리뷰(arXiv 2507.18882), 대화형 튜터 종합(arXiv 2602.19303), 프로그래밍 교육의 메타인지 스캐폴딩(arXiv 2511.04144).</p>
+      </div>
     </div>
   </section>
 
   <!-- 팀 -->
-  <section id="team" class="max-w-6xl mx-auto px-6 py-28">
+  <section id="team" class="max-w-6xl mx-auto px-6 pt-14 pb-28">
     <p class="label mb-2 js-reveal">TEAM</p>
     <h2 class="serif text-[30px] sm:text-[34px] mb-3 js-reveal">만든 사람들 · ARES</h2>
     <p class="text-[var(--graphite)] text-[15px] leading-7 mb-14 js-reveal">한국외국어대학교 교육혁신원 · Better World 아이디어 공작소(교육&문화) 참가작</p>

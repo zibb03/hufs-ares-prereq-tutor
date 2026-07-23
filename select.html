@@ -21,6 +21,9 @@
   .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--forest)}
   .card:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
   .upload-card{border-style:dashed}
+  /* 지원 형식 칩: 좁은 화면에서 글자가 붙어 읽히지 않던 문제를 끊어서 보여준다 */
+  .fmt-chip{display:inline-block;padding:3px 9px;border:1px solid var(--line);border-radius:9999px;
+    font-size:11px;letter-spacing:.04em;color:var(--slate);background:#fff;white-space:nowrap}
   .dot{display:inline-flex;gap:4px}.dot i{width:6px;height:6px;border-radius:50%;background:var(--sage);animation:blink 1.2s infinite}
   .dot i:nth-child(2){animation-delay:.2s}.dot i:nth-child(3){animation-delay:.4s}
   @keyframes blink{50%{opacity:.2}}
@@ -40,7 +43,7 @@
     <div id="grid" class="grid sm:grid-cols-2 gap-4 mt-8"></div>
 
     <p id="status" class="text-[13px] text-[var(--slate)] mt-6 min-h-[20px]" aria-live="polite"></p>
-    <input id="file" type="file" accept=".txt,.md,.pdf" class="hidden">
+    <input id="file" type="file" accept=".txt,.md,.pdf,.pptx" class="hidden">
   </main>
 
 <script>
@@ -62,18 +65,22 @@ fetch('/api/subjects').then(r=>r.json()).then(({subjects=[]})=>{
   // 2열 격자에서 빈칸이 남지 않게: 과목 수가 짝수면 업로드 카드를 한 줄 전체로,
   // 홀수면 마지막 줄의 빈 칸에 끼워 넣는다.
   const wide = subjects.length % 2 === 0;
+  // 지원 형식은 좁은 화면에서 글자가 붙어 읽기 어려우므로 칩으로 끊어서 보여준다.
+  const chips = ['PDF', 'PPTX', 'TXT', 'MD']
+    .map(x => `<span class="fmt-chip">${x}</span>`).join('');
   const up = card(wide
-    ? `<div class="w-full flex items-center justify-between gap-4">
+    ? `<div class="w-full flex items-center justify-between gap-5 flex-wrap">
          <div>
            <div class="label">내 자료</div>
            <div class="serif text-[24px] mt-1">+ 강의자료 올리기</div>
            <div class="text-[13px] text-[var(--slate)] mt-2">찾는 과목이 없어도 괜찮습니다</div>
          </div>
-         <div class="text-[13px] text-[var(--slate)] shrink-0">PDF · TXT · MD 업로드 →</div>
+         <div class="flex flex-wrap gap-2 shrink-0">${chips}</div>
        </div>`
     : `<div class="label">내 자료</div>
        <div class="serif text-[22px] mt-1">+ 강의자료 올리기</div>
-       <div class="text-[13px] text-[var(--slate)] mt-2">PDF · TXT · MD 업로드 →</div>`,
+       <div class="text-[13px] text-[var(--slate)] mt-2">찾는 과목이 없어도 괜찮습니다</div>
+       <div class="flex flex-wrap gap-2 mt-3">${chips}</div>`,
     'upload-card' + (wide ? ' sm:col-span-2 sm:min-h-[168px] sm:flex sm:items-center' : ''));
   up.onclick = ()=>fileInp.click();
   grid.appendChild(up);
@@ -94,11 +101,61 @@ async function extractPdf(file){
   let t=''; for(let i=1;i<=doc.numPages;i++){ const c=await (await doc.getPage(i)).getTextContent(); t+=`\n===== p${i} =====\n`+c.items.map(x=>x.str).join(' '); }
   return t;
 }
+// pptx는 ZIP 안에 슬라이드별 XML이 들어 있다. 브라우저 내장 DecompressionStream으로
+// 압축을 풀어 슬라이드 텍스트만 뽑는다. 별도 라이브러리를 추가하지 않기 위한 선택.
+async function inflateRaw(bytes){
+  if(!bytes.length) return new Uint8Array();
+  const ds = new DecompressionStream('deflate-raw');
+  const buf = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+  return new Uint8Array(buf);
+}
+async function extractPptx(file){
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const dv = new DataView(buf.buffer);
+  const dec = new TextDecoder();
+  // ZIP 중앙 디렉터리 끝(EOCD) 표식을 뒤에서 찾는다
+  let eocd = -1;
+  for(let i = buf.length - 22; i >= 0 && i > buf.length - 66000; i--){
+    if(dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+  }
+  if(eocd < 0) throw new Error('PPTX 구조를 읽을 수 없습니다');
+  let off = dv.getUint32(eocd + 16, true);
+  const count = dv.getUint16(eocd + 10, true);
+  const slides = [];
+  for(let n = 0; n < count; n++){
+    if(dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const csize  = dv.getUint32(off + 20, true);
+    const nlen   = dv.getUint16(off + 28, true);
+    const elen   = dv.getUint16(off + 30, true);
+    const clen   = dv.getUint16(off + 32, true);
+    const lho    = dv.getUint32(off + 42, true);      // 로컬 헤더 위치
+    const name   = dec.decode(buf.subarray(off + 46, off + 46 + nlen));
+    off += 46 + nlen + elen + clen;
+    const m = name.match(/^ppt\/slides\/slide(\d+)\.xml$/);
+    if(!m) continue;
+    const lnlen = dv.getUint16(lho + 26, true), lelen = dv.getUint16(lho + 28, true);
+    const start = lho + 30 + lnlen + lelen;
+    const raw = buf.subarray(start, start + csize);
+    const xml = dec.decode(method === 0 ? raw : await inflateRaw(raw));
+    // <a:t>…</a:t> 안이 실제 텍스트다
+    const text = [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)]
+      .map(x => x[1].replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&'))
+      .join(' ').replace(/\s+/g,' ').trim();
+    if(text) slides.push([Number(m[1]), text]);
+  }
+  if(!slides.length) throw new Error('PPTX에서 텍스트를 찾지 못했습니다(이미지 위주 자료일 수 있습니다)');
+  return slides.sort((a,b)=>a[0]-b[0]).map(([i,t])=>`\n===== p${i} =====\n${t}`).join('');
+}
+
 fileInp.addEventListener('change', async ()=>{
   const f = fileInp.files[0]; if(!f) return;
   busy(`${f.name} 읽는 중…`);
   try{
-    const text = f.name.toLowerCase().endsWith('.pdf') ? await extractPdf(f) : await f.text();
+    const lower = f.name.toLowerCase();
+    const text = lower.endsWith('.pdf')  ? await extractPdf(f)
+               : lower.endsWith('.pptx') ? await extractPptx(f)
+               : await f.text();
     const r = await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:f.name.replace(/\.[^.]+$/,''), text})});
     const j = await r.json(); if(j.error) throw new Error(j.error);
     busy(`✓ ${j.chunks}개 청크 인덱싱됨 · 이동 중…`);
