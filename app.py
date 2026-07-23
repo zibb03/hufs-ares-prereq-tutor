@@ -81,6 +81,20 @@ def set_lecture(name, text):
     LECTURE_NAME, SUBJECT_ID = name, "custom"
     _VECS, _VEC_FILE = None, None
 
+def lexical_topk(query, k):
+    """임베딩을 쓸 수 없을 때의 폴백 검색.
+
+    무료 API의 임베딩 한도를 초과하면(429) 질의 임베딩이 불가능해 검색 전체가 멈춘다.
+    시연 중 화면이 죽는 것을 막기 위해 어절 겹침 점수로 대체한다.
+    지식베이스가 과목당 12~13청크로 작아 실용적인 수준의 결과가 나온다.
+    """
+    toks = [t for t in re.split(r"[^0-9A-Za-z가-힣]+", query.lower()) if len(t) > 1]
+    if not toks:
+        return list(range(min(k, len(CHUNKS))))
+    scored = sorted(range(len(CHUNKS)),
+                    key=lambda i: -sum(CHUNKS[i].lower().count(t) for t in toks))
+    return scored[:k]
+
 def retrieve(query, k=4):
     global _VECS
     if _VECS is None:
@@ -89,8 +103,17 @@ def retrieve(query, k=4):
             if len(v) == len(CHUNKS):
                 _VECS = v.astype(np.float32)
         if _VECS is None:                          # 커스텀/미계산: 1회 임베딩
-            _VECS = np.stack([embed(c) for c in CHUNKS])
-    return [CHUNKS[i] for i in cosine_topk(_VECS, embed(query), k)]
+            try:
+                _VECS = np.stack([embed(c) for c in CHUNKS])
+            except Exception as e:
+                print(f"[retrieve] 코퍼스 임베딩 실패 → 어절 검색으로 대체: {e}")
+                return [CHUNKS[i] for i in lexical_topk(query, k)]
+    try:
+        idx = cosine_topk(_VECS, embed(query), k)
+    except Exception as e:
+        print(f"[retrieve] 질의 임베딩 실패 → 어절 검색으로 대체: {e}")
+        idx = lexical_topk(query, k)
+    return [CHUNKS[i] for i in idx]
 
 select_subject("ling")  # 기본 과목
 
