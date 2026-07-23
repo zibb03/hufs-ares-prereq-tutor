@@ -45,11 +45,13 @@ def gemini(path, body):
     order = [i for i in usable if i >= _KEY_IDX] + [i for i in usable if i < _KEY_IDX]
     last_err = None
     for i in order:
+        # 키는 URL이 아니라 헤더로: URL은 프록시·접근 로그에 그대로 남는 자리다
         req = urllib.request.Request(
-            f"https://generativelanguage.googleapis.com/v1beta/{path}?key={keys[i]}",
-            data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+            f"https://generativelanguage.googleapis.com/v1beta/{path}",
+            data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json", "x-goog-api-key": keys[i]})
         try:
-            with urllib.request.urlopen(req) as r:
+            with urllib.request.urlopen(req, timeout=60) as r:
                 if i != _KEY_IDX:
                     print(f"[gemini] {i+1}번 키로 전환")
                 _KEY_IDX = i
@@ -233,7 +235,15 @@ def answer(messages):
                       "parts": [{"text": m["text"]}]} for m in messages],
     }
     r = gemini(f"models/{GEN_MODEL}:generateContent", body)
-    return {"reply": r["candidates"][0]["content"]["parts"][0]["text"], "sources": source_meta(hits)}
+    # 안전 필터·출력 한도에 걸리면 candidates가 비거나 parts가 없는 응답이 온다.
+    # 그대로 파싱하면 500이라, 학습자에게는 정상 형태의 안내로 떨어뜨린다.
+    try:
+        reply = r["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError):
+        reason = (r.get("candidates") or [{}])[0].get("finishReason", "빈 응답")
+        print(f"[answer] 응답에 본문 없음: {reason}")
+        reply = "죄송해요, 이번에는 답변을 만들지 못했어요. 질문을 조금 바꿔 다시 물어봐 주시겠어요?"
+    return {"reply": reply, "sources": source_meta(hits)}
 
 # Vercel FastAPI 감지를 위해 app은 반드시 top-level (try 블록 안이면 인식 못 함)
 from fastapi import FastAPI
@@ -264,7 +274,18 @@ def chat(inp: ChatIn):
     # 다중 사용자 배포 시 과목 컨텍스트를 요청별로 분리해야 한다.
     if inp.subject and inp.subject != SUBJECT_ID and inp.subject in PRESETS:
         select_subject(inp.subject)
-    return answer(inp.messages)
+    # 업로드 과목은 서버 메모리에만 있다. 재시작으로 지워졌으면
+    # 엉뚱한 과목 근거로 조용히 답하지 말고 다시 올리라고 알린다.
+    if inp.subject == "custom" and SUBJECT_ID != "custom":
+        return {"reply": "서버가 재시작되어 올렸던 강의자료가 지워졌어요. "
+                         "'과목 바꾸기 · 자료 올리기'에서 자료를 다시 올려 주세요.", "sources": []}
+    # 형태가 어긋난 항목은 버리고, 모델에 보내는 이력은 최근 20개로 제한한다
+    # (이력 전체를 매번 보내면 긴 세션에서 토큰이 선형으로 불어난다)
+    msgs = [m for m in inp.messages if isinstance(m, dict)
+            and m.get("role") in ("user", "assistant") and isinstance(m.get("text"), str)][-20:]
+    if not msgs:
+        return {"reply": "질문을 입력해 주세요.", "sources": []}
+    return answer(msgs)
 
 @app.get("/api/subjects")
 def subjects():
@@ -280,7 +301,10 @@ def select(inp: SelectIn):
 
 @app.post("/api/upload")
 def upload(inp: UploadIn):
-    set_lecture(inp.name, inp.text, inp.unit, inp.series, inp.grade, inp.kind)
+    # 클라이언트에도 20MB 제한이 있지만 우회 가능하므로 서버에서 한 번 더 막는다
+    if len(inp.text) > 2_000_000:
+        return {"error": "자료가 너무 큽니다. 파일을 나눠 올려 주세요."}
+    set_lecture(inp.name[:80], inp.text, inp.unit, inp.series, inp.grade, inp.kind)
     return {"id": SUBJECT_ID, "name": LECTURE_NAME, "chunks": len(CHUNKS)}
 
 @app.get("/api/lecture")
