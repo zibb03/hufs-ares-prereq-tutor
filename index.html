@@ -56,6 +56,14 @@
   #newchat:hover,#upload-btn:hover,#tool-hint:hover,#tool-blank:hover,#tool-explain:hover,#reflect-open:hover{
     transform:translateY(-2px);box-shadow:var(--shadow-md)}
 
+  /* 진행 바: 단색 forest는 회색 트랙 위에서 밋밋하게 보여, 브랜드 그라디언트(forest→sage→blush)를 쓴다.
+     상단 브랜드 액센트 바와 같은 색 순서라 화면 전체가 하나로 읽힌다. */
+  #mastery-track{height:8px;border-radius:9999px;background:#e8e8e5;overflow:hidden;
+    box-shadow:inset 0 1px 2px rgba(17,17,17,.06)}
+  #mastery-bar{height:100%;border-radius:9999px;transition:width .5s var(--ease-out);
+    background:linear-gradient(90deg,var(--forest) 0%,#5c8f7b 45%,var(--sage) 72%,var(--blush) 100%);
+    background-size:220% 100%;background-position:left center}
+
   /* 시인성: 배경이 흰색이라 연한 테두리만으로는 요소 경계가 거의 보이지 않았다.
      클릭 가능한 것들에 회색 면과 진한 테두리를 줘서 눌러야 할 곳이 드러나게 한다. */
   #tool-hint,#tool-blank,#tool-explain{
@@ -105,8 +113,8 @@
           <span class="label" title="대화 진행을 기준으로 한 표시이며, 실제 성취 평가가 아닙니다">진행 현황 · 대화 기준</span>
           <span id="mastery-label" class="text-[11px] font-medium text-[var(--forest)]">0%</span>
         </div>
-        <div class="h-1.5 bg-[var(--surface)] overflow-hidden mb-4" aria-label="대화 진행률">
-          <div id="mastery-bar" class="h-full bg-[var(--forest)] transition-all duration-500" style="width:0%"></div>
+        <div id="mastery-track" class="mb-4" aria-label="대화 진행률">
+          <div id="mastery-bar" style="width:0%"></div>
         </div>
       </div>
       <ol id="concept-map" class="space-y-1.5"></ol>
@@ -282,9 +290,11 @@ function renderSidebar(){
     const item = document.createElement('div');
     item.className = 'group flex items-center gap-1 px-2 py-2 cursor-pointer text-[13px] ' +
       (c.id === currentId ? 'bg-[var(--surface)] font-medium' : 'hover:bg-[var(--surface)] text-[var(--graphite)]');
+    // 어느 과목 대화인지 보이게 한다 (과목이 6개라 제목만으로는 구분이 안 된다)
     const title = document.createElement('span');
-    title.className = 'flex-1 truncate';
-    title.textContent = c.title;
+    title.className = 'flex-1 min-w-0';
+    title.innerHTML = `<span class="block truncate">${escapeHtml(c.title)}</span>` +
+      (c.lectureName ? `<span class="block truncate text-[11px] text-[var(--slate)] mt-0.5">${escapeHtml(c.lectureName)}</span>` : '');
     const del = document.createElement('button');
     del.className = 'opacity-0 group-hover:opacity-60 hover:!opacity-100 px-1';
     del.title = '삭제'; del.textContent = '✕';
@@ -519,11 +529,31 @@ function newChat(){
   renderSidebar(); renderLearning(); renderMessages(); inp.focus();
 }
 
-function openChat(id){
+// 지난 세션을 열 때는 그 세션이 진행됐던 과목으로 서버를 되돌린다.
+// 이게 없으면 서버의 현재 과목과 저장된 대화가 뒤섞여, 한 화면에 여러 과목의
+// 답변·힌트·개념맵이 동시에 나타난다(실제로 발생했던 문제).
+async function openChat(id){
   const c = chats.find(x => x.id === id);
   if(!c) return;
+  if(c.subjectId && c.subjectId !== 'custom' && c.subjectId !== subjectId){
+    try{
+      const r = await fetch('/api/select', {method:'POST', headers:{'Content-Type':'application/json'},
+                                            body:JSON.stringify({id:c.subjectId})}).then(x => x.json());
+      if(!r.error) applySubject(r.id, r.name);
+    }catch{ /* 전환 실패 시 아래 안내를 남긴다 */ }
+  }
   currentId = id; messages = c.messages || []; learning = c.learning || freshLearning();
   renderSidebar(); renderLearning(); renderMessages();
+  // 업로드 과목은 서버에 다시 올릴 수 없으므로(원본 파일이 없음) 과목이 다르면 알린다
+  if(c.subjectId && c.subjectId !== subjectId){
+    statusNote(`이 대화는 '${c.lectureName || '다른 과목'}'에서 진행됐습니다. 지금 과목은 '${lectureName}'입니다.`);
+  }
+}
+
+// 헤더 아래에 한 줄 안내를 띄운다(과목 불일치 등)
+function statusNote(text){
+  const el = $('context-detail');
+  if(el) el.textContent = text;
 }
 
 function deleteChat(id){
@@ -535,10 +565,13 @@ function persistCurrent(create = true){
   if(currentId === null && create){
     currentId = Date.now().toString();
     const first = messages.find(m => m.role === 'user');
-    chats.push({id:currentId, title:(first?.text || '새 학습').slice(0, 30), messages, learning});
+    // 어느 과목에서 진행한 대화인지 함께 저장한다 (복원 시 과목을 되돌리기 위해)
+    chats.push({id:currentId, title:(first?.text || '새 학습').slice(0, 30),
+                subjectId, lectureName, messages, learning});
   } else if(currentId !== null) {
     const c = chats.find(x => x.id === currentId);
-    if(c){ c.messages = messages; c.learning = learning; }
+    if(c){ c.messages = messages; c.learning = learning;
+           c.subjectId = c.subjectId || subjectId; c.lectureName = c.lectureName || lectureName; }
   }
   if(currentId !== null) localStorage.setItem(LAST_KEY, currentId);
   saveChats(); renderSidebar();
@@ -673,11 +706,14 @@ Promise.all([
 ]).then(([subs, cur]) => {
   SUBJECTS = subs.subjects || [];
   if(cur.name) applySubject(cur.id, cur.name);
-  renderLearning(); renderMessages();  // 로드된 과목으로 개념맵·대화 갱신
+
+  // 마지막 세션 복원은 과목을 확인한 뒤에 한다.
+  // 서버의 현재 과목과 다른 세션을 그대로 복원하면 한 화면에 여러 과목의 내용이 섞인다.
+  const last = localStorage.getItem(LAST_KEY);
+  const c = last ? chats.find(x => x.id === last) : null;
+  if(c && (!c.subjectId || c.subjectId === subjectId)) openChat(last);
+  else newChat();   // 과목이 바뀌었으면 새 세션으로 시작 (지난 대화는 사이드바에 남아 있다)
 });
-// 새로고침 시 마지막 세션 자동 복원
-const _last = localStorage.getItem(LAST_KEY);
-if(_last && chats.some(c => c.id === _last)) openChat(_last); else newChat();
 </script>
 </body>
 </html>
