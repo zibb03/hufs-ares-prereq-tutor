@@ -1,0 +1,20 @@
+node_modules/
+.env
+.env.local
+.DS_Store
+dist/
+.vercel
+*.log
+__pycache__/
+
+# 저작권: 강의자료 원문과 그로부터 생성된 임베딩은 이 공개 저장소에 두지 않는다.
+# 팀이 직접 작성한 지식베이스(lecture_ling / lecture_survey / lecture_ml)와
+# 진단 부록(lecture_*_appendix.txt)만 공개한다.
+lecture_info.txt
+lecture_info1.txt
+lecture_bizstat.txt
+lecture_acct.txt
+lecture_info_vecs.npy
+lecture_info1_vecs.npy
+lecture_bizstat_vecs.npy
+lecture_acct_vecs.npy

@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>선수개념 진단 튜터 · ARES</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
+<style>
+  :root{
+    --paper:#fffef8; --surface:#f5f5f4; --line:#e6e6e4;
+    --ink:#111; --graphite:#3a3a3a; --slate:#767676; --silver:#c9c9c9;
+    --forest:#294843; --forest-dark:#1d3a34; --forest-rgb:41,72,67;
+    --sage:#c9e3c2; --sage-rgb:201,227,194; --blush:#eaa9d0; --blush-rgb:234,169,208; --slatep:#5d5c64;
+    --shadow-sm:0 1px 2px rgba(17,17,17,.05), 0 1px 1px rgba(17,17,17,.04);
+    --shadow-md:0 10px 30px -10px rgba(17,17,17,.12), 0 2px 8px rgba(17,17,17,.04);
+    --shadow-lg:0 30px 60px -20px rgba(17,17,17,.22), 0 6px 20px rgba(17,17,17,.06);
+    --ease-out:cubic-bezier(.16,1,.3,1);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);
+    font-family:"Noto Sans KR",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    overflow-x:hidden}
+  section[id]{scroll-margin-top:72px}
+  .serif{font-family:"Gowun Dodum","Noto Sans KR",-apple-system,sans-serif}
+  .label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--slate);font-weight:600}
+
+  /* 은은한 그레인 텍스처 — 프리미엄한 지질감을 위해 아주 낮은 불투명도로 전체에 오버레이 */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.035;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* 스크롤 진행 바 */
+  #scroll-progress{position:fixed;top:0;left:0;height:3px;width:0%;z-index:9998;
+    background:linear-gradient(90deg,var(--forest),var(--sage),var(--blush));transition:width .05s linear}
+
+  /* 헤더 */
+  header{transition:all .4s var(--ease-out)}
+  header.scrolled{box-shadow:var(--shadow-sm);background:rgba(255,254,248,.98) !important}
+  header.scrolled .header-inner{height:56px !important}
+  .logo-mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--forest),var(--sage));box-shadow:var(--shadow-sm);flex-shrink:0}
+  .navlink{position:relative;color:var(--graphite);font-size:14px;padding-bottom:2px}
+  .navlink::after{content:"";position:absolute;left:0;bottom:0;width:0;height:1.5px;background:var(--forest);transition:width .3s var(--ease-out)}
+  .navlink:hover{color:var(--forest)}
+  .navlink:hover::after{width:100%}
+
+  /* 버튼: 은은한 그림자 + 살짝 커지는 차분한 호버 */
+  .btn{position:relative;transition:transform .25s var(--ease-out),box-shadow .25s var(--ease-out),background-color .25s ease}
+  .btn:hover{transform:scale(1.035)}
+  .btn:active{transform:scale(.98)}
+  .btn-solid{box-shadow:var(--shadow-md)}
+  .btn-solid:hover{box-shadow:var(--shadow-lg)}
+  .btn-ghost:hover{background:rgba(255,255,255,.12)}
+
+  /* 히어로 */
+  .hero{position:relative;overflow:hidden;background:var(--slatep);min-height:600px;
+    clip-path:polygon(0 0,100% 0,100% 96%,0 100%)}
+  .hero .wedge{position:absolute;inset:0}
+  .hero .wedge--forest{background:var(--forest);clip-path:polygon(0 0,62% 0,32% 100%,0 100%)}
+  .hero .wedge--sage{background:var(--sage);clip-path:polygon(62% 0,100% 0,74% 100%,32% 100%)}
+  .hero .wedge--blush{background:var(--blush);clip-path:polygon(88% 0,100% 0,100% 30%)}
+  .hero-content{position:relative;z-index:2}
+  .hero-spotlight{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(480px circle at var(--mx,50%) var(--my,40%), rgba(255,255,255,.14), transparent 60%)}
+  .reveal-line{display:block;overflow:hidden}
+  .reveal-line span{display:inline-block;will-change:transform}
+  .scroll-cue{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:2;color:#fff;opacity:.75}
+  .scroll-cue svg{animation:cue-bounce 1.8s ease-in-out infinite}
+  @keyframes cue-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+  @media (max-width:768px){
+    .hero{min-height:680px;clip-path:polygon(0 0,100% 0,100% 97%,0 100%)}
+    .hero .wedge--forest{clip-path:polygon(0 0,100% 0,55% 100%,0 100%)}
+    .hero .wedge--sage{clip-path:polygon(0 55%,100% 30%,100% 100%,0 100%)}
+    .hero .wedge--blush{display:none}
+  }
+  #hero-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;opacity:.92}
+  @media (prefers-reduced-motion: reduce){ #hero-canvas{display:none} .scroll-cue svg{animation:none} }
+
+  /* 카드 공통 */
+  .card{position:relative;border:1px solid var(--line);border-radius:20px;padding:28px;background:#fff;
+    box-shadow:var(--shadow-sm);transition:transform .4s var(--ease-out),box-shadow .4s var(--ease-out),border-color .4s ease}
+  .card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg);border-color:transparent}
+  .icon-badge{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-size:17px;box-shadow:var(--shadow-sm);transition:transform .4s var(--ease-out)}
+  .card:hover .icon-badge{transform:scale(1.1) rotate(-4deg)}
+
+  /* 배경 파랄락스 블롭 */
+  .blob{position:absolute;border-radius:9999px;filter:blur(60px);pointer-events:none;opacity:.5;z-index:0}
+  .blob-1{width:420px;height:420px;background:radial-gradient(circle,var(--sage),transparent 70%);top:-120px;left:-140px}
+  .blob-2{width:380px;height:380px;background:radial-gradient(circle,var(--blush),transparent 70%);bottom:-140px;right:-120px}
+  section{position:relative}
+  .section-inner{position:relative;z-index:1}
+
+  /* HOW: 스크롤 연동 타임라인 */
+  .step-dot{width:38px;height:38px;border-radius:9999px;display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;color:#fff;flex-shrink:0;box-shadow:var(--shadow-sm);position:relative;z-index:1}
+  .how-track{position:relative}
+  .how-line-bg{position:absolute;top:19px;left:5%;right:5%;height:2px;background:var(--line);display:none}
+  .how-line-fg{position:absolute;top:19px;left:5%;right:5%;height:2px;transform-origin:left center;transform:scaleX(0);
+    background:linear-gradient(90deg,var(--forest),var(--sage),var(--blush));display:none}
+  @media (min-width:768px){ .how-line-bg,.how-line-fg{display:block} }
+  .how-step{transition:transform .3s var(--ease-out)}
+  .how-step:hover{transform:translateY(-4px)}
+  .how-step:hover .step-dot{box-shadow:var(--shadow-md)}
+
+  /* 팀 카드: 마우스 반응 틸트 */
+  .tilt-card{transform-style:preserve-3d;will-change:transform;transition:transform .15s ease-out}
+  .avatar-ring{width:52px;height:52px;border-radius:9999px;display:flex;align-items:center;justify-content:center;
+    font-family:"Gowun Dodum",sans-serif;font-size:18px;color:#fff;margin-bottom:14px;box-shadow:var(--shadow-sm)}
+
+  /* CTA */
+  .cta-glow{position:absolute;border-radius:9999px;filter:blur(80px);opacity:.35;pointer-events:none}
+  .btn-pulse{position:relative}
+  .btn-pulse::after{content:"";position:absolute;inset:0;border-radius:9999px;box-shadow:0 0 0 0 rgba(255,255,255,.5);
+    animation:pulse-ring 2.4s ease-out infinite}
+  @keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(255,255,255,.45)}100%{box-shadow:0 0 0 22px rgba(255,255,255,0)}}
+  @media (prefers-reduced-motion: reduce){ .btn-pulse::after{animation:none} }
+
+  /* 푸터 */
+  footer{position:relative}
+  footer::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,var(--forest) 0 34%,var(--sage) 34% 67%,var(--blush) 67% 100%)}
+  .footer-link{color:var(--slate);font-size:13px;transition:color .2s ease}
+  .footer-link:hover{color:var(--forest)}
+
+  @media (prefers-reduced-motion: reduce){ *{animation-duration:.001s !important;transition-duration:.2s !important} }
+</style>
+</head>
+<body>
+
+  <div id="scroll-progress"></div>
+
+  <!-- 상단 네비 -->
+  <header class="sticky top-0 z-20 bg-[var(--paper)]/90 backdrop-blur border-b border-[var(--line)]">
+    <div class="header-inner max-w-6xl mx-auto px-6 h-16 flex items-center gap-8 transition-all duration-300">
+      <a href="/" class="flex items-center gap-2.5 shrink-0">
+        <span class="logo-mark"></span>
+        <span class="serif text-[18px] font-medium">선수개념 진단 튜터</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 flex-1">
+        <a href="#why" class="navlink">왜 만들었나</a>
+        <a href="#subjects" class="navlink">지원 과목</a>
+        <a href="#how" class="navlink">어떻게 작동하나</a>
+        <a href="#evidence" class="navlink">근거</a>
+        <a href="#team" class="navlink">팀 ARES</a>
+      </nav>
+      <a href="/start" class="btn btn-solid ml-auto shrink-0 inline-flex items-center h-9 px-5 rounded-full bg-[var(--forest)] text-white text-[13px] font-medium hover:bg-[var(--forest-dark)]">
+        튜터 시작하기
+      </a>
+    </div>
+  </header>
+
+  <!-- 히어로 -->
+  <section class="hero">
+    <div class="wedge wedge--forest"></div>
+    <div class="wedge wedge--sage"></div>
+    <div class="wedge wedge--blush"></div>
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
+    <div class="hero-spotlight" aria-hidden="true"></div>
+    <div class="hero-content max-w-6xl mx-auto px-6 h-full min-h-[600px] flex items-center">
+      <div class="max-w-xl py-24">
+        <p class="label !text-[#cfe3d9] mb-4 js-hero-in">선수개념 진단 AI 튜터 · 인문·사회 · 이공 4과목</p>
+        <h1 class="serif text-white text-[40px] sm:text-[50px] leading-[1.15] mb-5 tracking-tight">
+          <span class="reveal-line"><span class="js-hero-in">정답 대신,</span></span>
+          <span class="reveal-line"><span class="js-hero-in">무엇부터 알아야 하는지</span></span>
+          <span class="reveal-line"><span class="js-hero-in">부터 짚어드립니다</span></span>
+        </h1>
+        <p class="text-[#e7ece9] text-[15px] leading-7 mb-8 max-w-md js-hero-in">
+          강의를 못 따라가는 이유는 그 과목이 어려워서가 아니라,
+          <b class="text-white">앞에 있어야 할 개념이 비어 있어서</b>입니다.
+          강의자료를 근거로 그 빈 자리를 찾아내고, 답이 아니라 질문으로 스스로 채우게 돕습니다.
+        </p>
+        <div class="flex flex-wrap gap-3 js-hero-in">
+          <a href="/start" class="btn btn-solid inline-flex items-center h-11 px-6 rounded-full bg-white text-[var(--forest)] text-[14px] font-semibold hover:bg-[#f2f2f2]">
+            지금 진단 시작하기 →
+          </a>
+          <a href="#how" class="btn btn-ghost inline-flex items-center h-11 px-6 rounded-full border border-white/50 text-white text-[14px] font-medium">
+            작동 원리 보기
+          </a>
+        </div>
+      </div>
+    </div>
+    <a href="#why" class="scroll-cue" aria-label="아래로 스크롤">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 4v16m0 0l6-6m-6 6l-6-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </section>
+
+  <!-- 왜 만들었나 -->
+  <section id="why" class="max-w-6xl mx-auto px-6 py-28 overflow-hidden">
+    <div class="blob blob-1 js-parallax" data-speed="0.15"></div>
+    <div class="section-inner">
+      <p class="label mb-2 js-reveal">WHY</p>
+      <h2 class="serif text-[30px] sm:text-[34px] mb-3 js-reveal">왜 만들었나</h2>
+      <p class="text-[var(--graphite)] text-[15px] leading-7 max-w-2xl mb-14 js-reveal">
+        2024년 한 해 4년제 대학 중도탈락자는 <b>10만 817명</b>, 그중 증가 폭이 가장 큰 계열은
+        <b>인문사회계열</b>(2022년 대비 19.1% 증가)이었습니다. 학업 중단은 의지의 문제가 아니라
+        앞 단계 개념이 비어 다음 단계를 따라갈 수 없는 <b>누적 구조</b>의 결과입니다.
+        그런데 이 결손은 수강 이력에 드러나지 않아 아무도 짚어주지 않습니다.
+      </p>
+      <div class="grid sm:grid-cols-3 gap-6">
+        <div class="card js-reveal-card">
+          <div class="icon-badge" style="background:var(--forest)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-4 10.4c.6.55 1 1.35 1 2.1v.5h6v-.5c0-.75.4-1.55 1-2.1A6 6 0 0012 3z" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3 class="font-semibold text-[15.5px] mb-2 mt-4">이력에 안 보이는 결손</h3>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">편입생·무전공 입학생·유학생·복학생은 모두 <b>‘선수과목을 이수한 학생’</b>으로 기록됩니다. 결손을 찾으려면 이력이 아니라 이해도를 직접 진단해야 합니다.</p>
+        </div>
+        <div class="card js-reveal-card">
+          <div class="icon-badge" style="background:var(--blush)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3 class="font-semibold text-[15.5px] mb-2 mt-4">숨은 선수과목</h3>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">한국외대 수강편람을 보면 영어학과에 「영어데이터분석을위한통계」, 경영학전공에 「경영통계학」·「머신러닝」이 열려 있지만 <b>공식 선수과목 지정은 없습니다.</b></p>
+        </div>
+        <div class="card js-reveal-card">
+          <div class="icon-badge" style="background:var(--sage)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 19V9m6 10V5m6 14v-6" stroke="var(--forest)" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </div>
+          <h3 class="font-semibold text-[15.5px] mb-2 mt-4">교수도 ‘설명’을 원한다</h3>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">「AI정보이론」 중간고사 채점 가이드라인 첫 줄은 <b>“설명 없이 답만 있을 경우 0점”</b>. 정답만 주는 도구로는 이 요구를 채울 수 없습니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 지원 과목 -->
+  <section id="subjects" class="max-w-6xl mx-auto px-6 pb-28">
+    <p class="label mb-2 js-reveal">SUBJECTS</p>
+    <h2 class="serif text-[30px] sm:text-[34px] mb-3 js-reveal">지원 과목</h2>
+    <p class="text-[var(--graphite)] text-[15px] leading-7 max-w-2xl mb-14 js-reveal">
+      과목마다 <b>선수개념의 종류와 위계가 전혀 다릅니다.</b> 그래서 과목별로 숨은 선수개념·오개념·진단 질문을
+      챕터 단위 지식베이스로 따로 구축했습니다. 준비된 과목을 고르거나, 본인 강의자료를 올려 바로 시작할 수 있습니다.
+    </p>
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
+      <div class="card js-reveal-card">
+        <div class="icon-badge" style="background:var(--forest)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h10M4 18h7" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <p class="label !normal-case !tracking-normal mt-4 mb-1">인문계열</p>
+        <h3 class="font-semibold text-[15.5px] mb-2">언어학입문</h3>
+        <p class="text-[13.5px] text-[var(--graphite)] leading-6">음소와 변이음을 구분하지 못하면 음운론에서 무너집니다. 수식 없이 <b>관점</b>이 선수개념인 과목.</p>
+      </div>
+      <div class="card js-reveal-card">
+        <div class="icon-badge" style="background:var(--blush)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 19V9m6 10V5m6 14v-6" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <p class="label !normal-case !tracking-normal mt-4 mb-1">사회계열</p>
+        <h3 class="font-semibold text-[15.5px] mb-2">사회과학 연구방법론</h3>
+        <p class="text-[13.5px] text-[var(--graphite)] leading-6">표본분포와 <b>표집분포</b>를 혼동하면 p값이 끝까지 이해되지 않습니다. 조사방법론·통계 과목 공통.</p>
+      </div>
+      <div class="card js-reveal-card">
+        <div class="icon-badge" style="background:#b45d77">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 20h16M7 20V10m5 10V5m5 15v-7" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <p class="label !normal-case !tracking-normal mt-4 mb-1">사회계열 · 경영</p>
+        <h3 class="font-semibold text-[15.5px] mb-2">경영통계학</h3>
+        <p class="text-[13.5px] text-[var(--graphite)] leading-6">2~14주차 <b>174슬라이드</b> 원문 근거. 자료의 분포와 <b>표본평균분포</b>를 구분하지 못하면 추정·검정 전체가 무너집니다.</p>
+      </div>
+      <div class="card js-reveal-card">
+        <div class="icon-badge" style="background:var(--slatep)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 4h9l3 3v13H6zM9 12h6M9 16h6" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <p class="label !normal-case !tracking-normal mt-4 mb-1">사회계열 · 경영</p>
+        <h3 class="font-semibold text-[15.5px] mb-2">회계원리</h3>
+        <p class="text-[13.5px] text-[var(--graphite)] leading-6">Chapter 1~12 <b>474쪽 영문 원문</b> 근거. 개념 난이도와 영어 용어 부담이 겹치는 대표적 누적형 과목.</p>
+      </div>
+      <div class="card js-reveal-card">
+        <div class="icon-badge" style="background:var(--forest)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M3 12h18" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <p class="label !normal-case !tracking-normal mt-4 mb-1">이공계열</p>
+        <h3 class="font-semibold text-[15.5px] mb-2">AI정보이론</h3>
+        <p class="text-[13.5px] text-[var(--graphite)] leading-6">1~9강 강의자료 <b>461쪽 전 범위</b>를 근거로 검색합니다. 1강 제목이 통째로 “확률 내용 복습”인 과목.</p>
+      </div>
+      <div class="card js-reveal-card">
+        <div class="icon-badge" style="background:var(--sage)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12a7 7 0 0114 0M5 12a7 7 0 0014 0" stroke="var(--forest)" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <p class="label !normal-case !tracking-normal mt-4 mb-1">이공계열</p>
+        <h3 class="font-semibold text-[15.5px] mb-2">머신러닝</h3>
+        <p class="text-[13.5px] text-[var(--graphite)] leading-6">선형대수·확률·다변수 미적분에 <b>동시에</b> 걸쳐 있어, 어디가 비었는지 스스로 알기 어려운 과목.</p>
+      </div>
+    </div>
+    <p class="text-[13.5px] text-[var(--slate)] leading-6 mt-14 js-reveal">
+      찾는 과목이 없다면 <a href="/start" class="underline underline-offset-2 text-[var(--forest)]">강의자료(PDF·필기)를 직접 올려</a> 진단을 시작할 수 있습니다.
+    </p>
+  </section>
+
+  <!-- 어떻게 작동하나 -->
+  <section id="how" class="bg-[var(--surface)] border-y border-[var(--line)] overflow-hidden">
+    <div class="blob blob-2 js-parallax" data-speed="0.1"></div>
+    <div class="max-w-6xl mx-auto px-6 py-28 section-inner">
+      <p class="label mb-2 js-reveal">HOW</p>
+      <h2 class="serif text-[30px] sm:text-[34px] mb-14 js-reveal">어떻게 작동하나</h2>
+
+      <div class="how-track grid md:grid-cols-5 gap-8 md:gap-6">
+        <div class="how-line-bg"></div>
+        <div class="how-line-fg js-how-line"></div>
+        <div class="how-step js-reveal-card">
+          <div class="step-dot" style="background:var(--forest)">1</div>
+          <h3 class="font-semibold text-[14px] mt-4 mb-1">과목 선택 · 업로드</h3>
+          <p class="text-[13px] text-[var(--graphite)] leading-6">준비된 4개 과목을 고르거나, 내 강의자료를 올립니다.</p>
+        </div>
+        <div class="how-step js-reveal-card">
+          <div class="step-dot" style="background:var(--forest)">2</div>
+          <h3 class="font-semibold text-[14px] mt-4 mb-1">강의 근거 검색</h3>
+          <p class="text-[13px] text-[var(--graphite)] leading-6">질문과 의미가 가까운 강의 대목을 찾아 근거로 씁니다. 답변 아래 <b>출처 쪽수</b>가 표시됩니다.</p>
+        </div>
+        <div class="how-step js-reveal-card">
+          <div class="step-dot" style="background:var(--slatep)">3</div>
+          <h3 class="font-semibold text-[14px] mt-4 mb-1">선수개념 진단</h3>
+          <p class="text-[13px] text-[var(--graphite)] leading-6">답을 주기 전에, 그 개념을 이해하는 데 필요한 앞 개념부터 짧게 확인합니다.</p>
+        </div>
+        <div class="how-step js-reveal-card">
+          <div class="step-dot" style="background:var(--blush)">4</div>
+          <h3 class="font-semibold text-[14px] mt-4 mb-1">되돌아가 보충</h3>
+          <p class="text-[13px] text-[var(--graphite)] leading-6">결손이 확인되면 “먼저 ○○가 필요해요”라고 명시하고 그 기초부터 채웁니다.</p>
+        </div>
+        <div class="how-step js-reveal-card">
+          <div class="step-dot" style="background:var(--sage);color:var(--forest)">5</div>
+          <h3 class="font-semibold text-[14px] mt-4 mb-1">자기설명 · 성찰</h3>
+          <p class="text-[13px] text-[var(--graphite)] leading-6">맞힌 뒤에도 “내 말로 설명”을 요구하고, 세션은 성찰로 마무리합니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 근거 -->
+  <section id="evidence" class="max-w-6xl mx-auto px-6 py-28 overflow-hidden">
+    <div class="blob blob-1 js-parallax" data-speed="0.12"></div>
+    <div class="section-inner">
+      <p class="label mb-2 js-reveal">EVIDENCE</p>
+      <h2 class="serif text-[30px] sm:text-[34px] mb-3 js-reveal">무엇에 근거했나</h2>
+      <p class="text-[var(--graphite)] text-[15px] leading-7 max-w-2xl mb-14 js-reveal">
+        기능을 먼저 정하지 않았습니다. 학습과학 문헌과 재학생 설문에서 확인한 것만 화면에 옮겼습니다.
+      </p>
+
+      <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+        <div class="card js-reveal-card">
+          <p class="serif text-[34px] text-[var(--forest)] leading-none mb-2">74%</p>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">선수개념을 몰라 진도를 따라가기 어려웠던 경험</p>
+        </div>
+        <div class="card js-reveal-card">
+          <p class="serif text-[34px] text-[var(--forest)] leading-none mb-2">79%</p>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">원인은 “선수과목은 들었지만 잊었거나 제대로 이해하지 못함”</p>
+        </div>
+        <div class="card js-reveal-card">
+          <p class="serif text-[34px] text-[#b45d77] leading-none mb-2">100%</p>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">같은 내용을 AI에 여러 번 반복 질문한 경험</p>
+        </div>
+        <div class="card js-reveal-card">
+          <p class="serif text-[34px] text-[#b45d77] leading-none mb-2">93%</p>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">생성형 AI를 거의 매일 쓰지만, 그래도 이해는 채워지지 않는다</p>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="card js-reveal-card">
+          <h3 class="font-semibold text-[15.5px] mb-2">인지부하 이론</h3>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">“지금 어디에 있는지” 모르는 상태와 매번 자유 서술을 강요하는 입력 부담 자체가 학습을 방해합니다.</p>
+          <p class="text-[12px] text-[var(--slate)] mt-3">→ 학습 컨텍스트 헤더 · 진행 현황 · 응답 선택지</p>
+        </div>
+        <div class="card js-reveal-card">
+          <h3 class="font-semibold text-[15.5px] mb-2">스캐폴딩 · 자기설명</h3>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">좋은 튜터는 답을 설명하지 않고 간접 힌트로 스스로 고치게 합니다. 자기 언어로 재구성할 때 학습 효과가 가장 큽니다.</p>
+          <p class="text-[12px] text-[var(--slate)] mt-3">→ 관찰 · 연결 · 첫걸음 3단계 힌트 · 빈칸 연습</p>
+        </div>
+        <div class="card js-reveal-card">
+          <h3 class="font-semibold text-[15.5px] mb-2">메타인지 사이클</h3>
+          <p class="text-[13.5px] text-[var(--graphite)] leading-6">자기조절학습은 계획 → 모니터링 → 평가가 닫혀야 완성됩니다.</p>
+          <p class="text-[12px] text-[var(--slate)] mt-3">→ 세션 종료 시 성찰 단계 필수화</p>
+        </div>
+      </div>
+      <p class="text-[12px] text-[var(--slate)] leading-6 mt-16 pt-6 border-t border-[var(--line)] js-reveal">
+        설문: 한국외대 재학생 대상 익명 설문 14문항(분석표본 42명) · 통계: 대학알리미 2025년 공시, 통계청 초중고 사교육비조사
+      </p>
+    </div>
+  </section>
+
+  <!-- 팀 -->
+  <section id="team" class="max-w-6xl mx-auto px-6 py-28">
+    <p class="label mb-2 js-reveal">TEAM</p>
+    <h2 class="serif text-[30px] sm:text-[34px] mb-3 js-reveal">만든 사람들 · ARES</h2>
+    <p class="text-[var(--graphite)] text-[15px] leading-7 mb-14 js-reveal">한국외국어대학교 교육혁신원 · Better World 아이디어 공작소(교육&문화) 참가작</p>
+    <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
+      <div class="card tilt-card js-reveal-card">
+        <div class="avatar-ring" style="background:linear-gradient(135deg,var(--forest),var(--forest-dark))">원</div>
+        <p class="font-semibold text-[15px]">원종윤</p>
+        <p class="label !normal-case !tracking-normal mt-1">팀장 · 총괄 · RAG 백엔드 · 학습 페이지 통합 · 설문 설계</p>
+      </div>
+      <div class="card tilt-card js-reveal-card">
+        <div class="avatar-ring" style="background:linear-gradient(135deg,var(--blush),#d888ba)">오</div>
+        <p class="font-semibold text-[15px]">오세창</p>
+        <p class="label !normal-case !tracking-normal mt-1">학습과학 문헌 · 설계 원칙 · 설문 분석 · 근거 표시 설계</p>
+      </div>
+      <div class="card tilt-card js-reveal-card">
+        <div class="avatar-ring" style="background:linear-gradient(135deg,var(--slatep),#3f3e45)">윤</div>
+        <p class="font-semibold text-[15px]">윤태민</p>
+        <p class="label !normal-case !tracking-normal mt-1">포지셔닝 · SWOT 분석 · 과목별 선수개념 지식베이스 설계</p>
+      </div>
+      <div class="card tilt-card js-reveal-card">
+        <div class="avatar-ring" style="background:linear-gradient(135deg,var(--sage),#9dc794);color:var(--forest)">박</div>
+        <p class="font-semibold text-[15px]">박현빈</p>
+        <p class="label !normal-case !tracking-normal mt-1">학습 페이지 UI 구현 · 생성형 AI 활용</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 하단 CTA -->
+  <section class="bg-[var(--forest)] relative overflow-hidden">
+    <div class="cta-glow js-parallax" data-speed="0.2" style="width:360px;height:360px;background:var(--sage);top:-100px;left:10%"></div>
+    <div class="cta-glow js-parallax" data-speed="-0.15" style="width:320px;height:320px;background:var(--blush);bottom:-120px;right:10%"></div>
+    <div class="max-w-6xl mx-auto px-6 py-20 text-center relative z-10 js-reveal">
+      <h2 class="serif text-white text-[27px] sm:text-[30px] mb-7">지금 바로 진단을 시작해보세요</h2>
+      <a href="/start" class="btn btn-solid btn-pulse inline-flex items-center h-12 px-8 rounded-full bg-white text-[var(--forest)] text-[14.5px] font-semibold hover:bg-[#f2f2f2]">
+        튜터 열기 →
+      </a>
+    </div>
+  </section>
+
+  <footer class="border-t border-[var(--line)] bg-[var(--paper)]">
+    <div class="max-w-6xl mx-auto px-6 py-14 grid sm:grid-cols-2 md:grid-cols-4 gap-10">
+      <div>
+        <div class="flex items-center gap-2.5 mb-3">
+          <span class="logo-mark"></span>
+          <span class="serif text-[16px]">선수개념 진단 튜터</span>
+        </div>
+        <p class="text-[13px] text-[var(--slate)] leading-6">정답 대신, 무엇부터 알아야 하는지 짚어주는 RAG 기반 AI 튜터.</p>
+      </div>
+      <div>
+        <p class="label mb-3">바로가기</p>
+        <ul class="space-y-2">
+          <li><a href="#why" class="footer-link">왜 만들었나</a></li>
+          <li><a href="#subjects" class="footer-link">지원 과목</a></li>
+          <li><a href="#how" class="footer-link">어떻게 작동하나</a></li>
+          <li><a href="#evidence" class="footer-link">근거</a></li>
+          <li><a href="#team" class="footer-link">팀 ARES</a></li>
+          <li><a href="/start" class="footer-link">튜터 시작하기</a></li>
+        </ul>
+      </div>
+      <div class="md:col-span-2">
+        <p class="label mb-3">ABOUT</p>
+        <p class="text-[13px] text-[var(--slate)] leading-6">한국외국어대학교 교육혁신원 · Better World 아이디어 공작소(교육&문화) 참가작<br>팀 ARES — 원종윤 · 오세창 · 윤태민 · 박현빈</p>
+      </div>
+    </div>
+    <div class="max-w-6xl mx-auto px-6 py-6 border-t border-[var(--line)] text-[12px] text-[var(--silver)]">
+      © ARES · Better World 아이디어 공작소
+    </div>
+  </footer>
+
+<!-- 히어로 배경: 선수개념 간의 연결(개념 그래프)을 형상화한 3D 노드 네트워크. -->
+<script type="module">
+(async () => {
+  try {
+    const canvas = document.getElementById('hero-canvas');
+    const heroSection = document.querySelector('.hero');
+    if (!canvas || !heroSection) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const THREE = await import('https://unpkg.com/three@0.160.0/build/three.module.js');
+
+    const palette = [0x9fe0c9, 0xc9e3c2, 0xf3b8dc];
+    const NODE_COUNT = 46;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 13;
+
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+
+    const group = new THREE.Group();
+    scene.add(group);
+
+    const basePositions = [];
+    const phases = [];
+    for (let i = 0; i < NODE_COUNT; i++) {
+      basePositions.push(new THREE.Vector3(
+        (Math.random() - 0.5) * 16,
+        (Math.random() - 0.5) * 11,
+        (Math.random() - 0.5) * 8
+      ));
+      phases.push(Math.random() * Math.PI * 2);
+    }
+
+    const positions = new Float32Array(NODE_COUNT * 3);
+    const colors = new Float32Array(NODE_COUNT * 3);
+    const tmpColor = new THREE.Color();
+    basePositions.forEach((p, i) => {
+      positions.set([p.x, p.y, p.z], i * 3);
+      tmpColor.setHex(palette[i % palette.length]);
+      colors.set([tmpColor.r, tmpColor.g, tmpColor.b], i * 3);
+    });
+    const posAttr = new THREE.BufferAttribute(positions, 3);
+    posAttr.setUsage(THREE.DynamicDrawUsage);
+    const pointGeo = new THREE.BufferGeometry();
+    pointGeo.setAttribute('position', posAttr);
+    pointGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const pointMat = new THREE.PointsMaterial({ size: 0.32, vertexColors: true, transparent: true, opacity: 1, sizeAttenuation: true });
+    const points = new THREE.Points(pointGeo, pointMat);
+    group.add(points);
+
+    const edgeIndices = [];
+    for (let i = 0; i < NODE_COUNT; i++) {
+      for (let j = i + 1; j < NODE_COUNT; j++) {
+        if (basePositions[i].distanceTo(basePositions[j]) < 4.6) edgeIndices.push(i, j);
+      }
+    }
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', posAttr);
+    lineGeo.setIndex(edgeIndices);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 });
+    const lines = new THREE.LineSegments(lineGeo, lineMat);
+    group.add(lines);
+
+    let targetRotX = 0, targetRotY = 0, curRotX = 0, curRotY = 0, autoRotY = 0;
+    heroSection.addEventListener('pointermove', e => {
+      const r = heroSection.getBoundingClientRect();
+      targetRotY = ((e.clientX - r.left) / r.width - 0.5) * 0.9;
+      targetRotX = ((e.clientY - r.top) / r.height - 0.5) * -0.55;
+      heroSection.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+      heroSection.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+    });
+
+    function resize() {
+      const w = heroSection.clientWidth, h = heroSection.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    let running = true;
+    document.addEventListener('visibilitychange', () => { running = !document.hidden; });
+    new IntersectionObserver(([entry]) => {
+      running = entry.isIntersecting && !document.hidden;
+    }, { threshold: 0.05 }).observe(heroSection);
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      if (!running) return;
+      const t = clock.getElapsedTime();
+
+      for (let i = 0; i < NODE_COUNT; i++) {
+        const b = basePositions[i], ph = phases[i], k = i * 3;
+        positions[k]     = b.x + Math.sin(t * 0.6 + ph) * 0.55;
+        positions[k + 1] = b.y + Math.cos(t * 0.75 + ph * 1.3) * 0.55;
+        positions[k + 2] = b.z + Math.sin(t * 0.5 + ph * 0.7) * 0.4;
+      }
+      posAttr.needsUpdate = true;
+
+      autoRotY += 0.0065;
+      curRotY += (targetRotY - curRotY) * 0.03;
+      curRotX += (targetRotX - curRotX) * 0.03;
+      group.rotation.y = autoRotY + curRotY;
+      group.rotation.x = curRotX;
+      group.rotation.z = Math.sin(t * 0.15) * 0.05;
+
+      pointMat.size = 0.32 + Math.sin(t * 1.6) * 0.08;
+      lineMat.opacity = 0.22 + Math.sin(t * 1.1) * 0.09;
+      camera.position.z = 13 + Math.sin(t * 0.35) * 1.4;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  } catch (err) {
+    console.warn('hero 3D 배경 비활성화:', err);
+  }
+})();
+</script>
+
+<!-- GSAP 기반 스크롤 스토리텔링: 헤더 축소, 스크롤 진행바, 히어로 등장, 카드 리빌, 패럴랙스, 타임라인, 팀 카드 틸트.
+     GSAP/ScrollTrigger 로드 실패 시에도 모든 요소는 기본 CSS 상태(완전히 보이는 상태)로 남아있어 콘텐츠 접근에 문제가 없다. -->
+<script defer>
+window.addEventListener('load', function initSiteMotion(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // 헤더 축소 + 스크롤 진행바 (라이브러리 무관, 항상 동작)
+  var header = document.querySelector('header');
+  var progress = document.getElementById('scroll-progress');
+  var onScroll = function(){
+    var y = window.scrollY || document.documentElement.scrollTop;
+    if (header) header.classList.toggle('scrolled', y > 20);
+    if (progress) {
+      var max = document.documentElement.scrollHeight - window.innerHeight;
+      progress.style.width = (max > 0 ? Math.min(100, (y / max) * 100) : 0) + '%';
+    }
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // 팀 카드 틸트 (라이브러리 무관, 항상 동작)
+  if (!reduced && window.matchMedia('(hover:hover)').matches) {
+    document.querySelectorAll('.tilt-card').forEach(function(card){
+      card.addEventListener('mousemove', function(e){
+        var r = card.getBoundingClientRect();
+        var px = (e.clientX - r.left) / r.width - 0.5;
+        var py = (e.clientY - r.top) / r.height - 0.5;
+        card.style.transform = 'perspective(600px) rotateX(' + (-py * 8) + 'deg) rotateY(' + (px * 8) + 'deg) translateY(-6px)';
+      });
+      card.addEventListener('mouseleave', function(){ card.style.transform = ''; });
+    });
+  }
+
+  if (typeof gsap === 'undefined') return; // GSAP CDN 로드 실패 시 이하 스크롤 스토리텔링만 생략, 콘텐츠는 그대로 노출됨
+  gsap.registerPlugin(ScrollTrigger);
+
+  // 히어로는 등장 애니메이션을 걸지 않는다. 이 스크립트는 load 이후에 실행되므로
+  // gsap.from을 쓰면 (보임 → opacity 0 → 다시 보임) 플래시가 생기고, 그 사이 상단 네비만
+  // 읽혀 헤더가 강조된 것처럼 보인다. 첫 화면은 즉시 완성된 상태로 보여준다.
+
+  // 스크롤 리빌: 문단/라벨류
+  gsap.utils.toArray('.js-reveal').forEach(function(el){
+    gsap.from(el, {
+      opacity: 0, y: 24, duration: .8, ease: 'power3.out',
+      scrollTrigger: { trigger: el, start: 'top 85%', once: true }
+    });
+  });
+
+  // 스크롤 리빌: 카드류 (부모 기준 스태거)
+  var cardGroups = {};
+  document.querySelectorAll('.js-reveal-card').forEach(function(el){
+    var parent = el.closest('section');
+    var key = parent ? (parent.id || Array.prototype.indexOf.call(document.querySelectorAll('section'), parent)) : Math.random();
+    (cardGroups[key] = cardGroups[key] || []).push(el);
+  });
+  Object.values(cardGroups).forEach(function(group){
+    gsap.from(group, {
+      opacity: 0, y: 36, duration: .8, ease: 'power3.out', stagger: .12,
+      scrollTrigger: { trigger: group[0], start: 'top 85%', once: true }
+    });
+  });
+
+  // HOW 섹션 타임라인 진행선
+  var howLine = document.querySelector('.js-how-line');
+  if (howLine) {
+    gsap.to(howLine, {
+      scaleX: 1, ease: 'none',
+      scrollTrigger: { trigger: '.how-track', start: 'top 70%', end: 'bottom 60%', scrub: .6 }
+    });
+  }
+
+  // 배경 블롭 패럴랙스
+  gsap.utils.toArray('.js-parallax').forEach(function(el){
+    var speed = parseFloat(el.dataset.speed || '0.15');
+    gsap.to(el, {
+      y: function(){ return window.innerHeight * speed; }, ease: 'none',
+      scrollTrigger: { trigger: el.closest('section'), start: 'top bottom', end: 'bottom top', scrub: true }
+    });
+  });
+
+  ScrollTrigger.refresh();
+});
+</script>
+
+</body>
+</html>

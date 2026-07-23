@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>선수개념 진단 튜터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<style>
+  :root{
+    --paper:#fff;--surface:#f5f5f4;--line:#e6e6e4;--ink:#111;--graphite:#3a3a3a;
+    --slate:#767676;--silver:#c9c9c9;--forest:#294843;--forest-dark:#1d3a34;
+    --sage:#c9e3c2;--sage-soft:#eff7ed;--blush:#eaa9d0;--amber:#d9a441;
+    --shadow-sm:0 1px 3px rgba(17,17,17,.06);
+    --shadow-md:0 10px 26px -12px rgba(17,17,17,.18);
+    --shadow-lg:0 24px 48px -16px rgba(17,17,17,.24);
+    --ease-out:cubic-bezier(.16,1,.3,1);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:"Noto Sans KR",-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+  button:focus-visible,textarea:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+  #in:focus,#in:focus-visible{outline:none}
+  .brand-accent{height:5px;background:linear-gradient(90deg,var(--forest) 0 34%,var(--sage) 34% 67%,var(--blush) 67% 100%)}
+  .serif{font-family:"Gowun Dodum","Noto Sans KR",-apple-system,sans-serif}
+  .label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate)}
+  .prose p{margin:0 0 .7em}.prose p:last-child{margin-bottom:0}
+  .prose ul,.prose ol{margin:.4em 0;padding-left:1.3em}.prose strong{color:var(--ink)}
+  .thin-scroll::-webkit-scrollbar{width:6px}.thin-scroll::-webkit-scrollbar-thumb{background:var(--silver);border-radius:3px}
+  details>summary{list-style:none;cursor:pointer}details>summary::-webkit-details-marker{display:none}
+  details[open] .chev{transform:rotate(45deg)}.chev{transition:transform .15s ease}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--silver);position:relative}
+  .status-dot.learning{background:var(--amber)}.status-dot.mastered{background:var(--forest)}
+  .status-dot.learning::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--amber);
+    animation:dot-pulse 1.7s ease-out infinite}
+  @keyframes dot-pulse{0%{transform:scale(.5);opacity:.7}100%{transform:scale(1.9);opacity:0}}
+  @keyframes blink{50%{opacity:.2}}.dot{animation:blink 1.2s infinite}
+  .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+  .blank{border-bottom:1.5px solid var(--forest);min-width:64px;display:inline-block;text-align:center;color:var(--forest);cursor:pointer;padding:0 4px}
+  .blank.filled{background:var(--sage-soft);cursor:default}
+  dialog::backdrop{background:rgba(17,17,17,.4);backdrop-filter:blur(2px)}
+  dialog#reflection-dialog{border-radius:22px;box-shadow:var(--shadow-lg);border:none}
+
+  /* 마이크로 인터랙션: 버튼 호버 리프트, 메시지 등장 애니메이션, 입력창 포커스 글로우 */
+  #newchat,#upload-btn,#tool-hint,#tool-blank,#tool-explain,#reflect-open{
+    border-radius:14px;transition:transform .25s var(--ease-out),box-shadow .25s var(--ease-out),background-color .2s ease,border-color .2s ease}
+  #newchat:hover,#upload-btn:hover,#tool-hint:hover,#tool-blank:hover,#tool-explain:hover,#reflect-open:hover{
+    transform:translateY(-2px);box-shadow:var(--shadow-md)}
+  #send{transition:transform .2s var(--ease-out),box-shadow .2s var(--ease-out)}
+  #send:hover:not(:disabled){transform:scale(1.08);box-shadow:var(--shadow-md)}
+  #send:active:not(:disabled){transform:scale(.92)}
+  .input-row{transition:box-shadow .25s var(--ease-out),border-color .25s ease}
+  .input-row:focus-within{box-shadow:0 0 0 4px rgba(41,72,67,.1)}
+  #sidebar-list>div{border-radius:12px;transition:background-color .2s ease}
+  @keyframes msg-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .msg-in{animation:msg-in .45s var(--ease-out) both}
+  @media (prefers-reduced-motion: reduce){ .msg-in{animation:none} .status-dot.learning::after{animation:none} }
+
+  @media(max-width:767px){
+    #left-panel{display:none}#context-detail{display:none}
+    #left-panel.open{display:flex;position:fixed;top:0;left:0;bottom:0;z-index:50;width:min(80vw,288px);box-shadow:24px 0 60px rgba(17,17,17,.3)}
+  }
+</style>
+</head>
+<body class="h-screen flex text-[15px] overflow-hidden">
+
+  <aside id="left-panel" class="w-72 shrink-0 border-r border-[var(--line)] flex flex-col bg-white">
+    <div class="brand-accent"></div>
+    <div class="px-5 pt-5 pb-4 border-b border-[var(--line)]">
+      <a href="/" class="serif text-[19px] leading-tight block hover:opacity-70">선수개념<br>진단 튜터</a>
+      <div class="label mt-2">AI TUTOR · LEARNING LOOP</div>
+    </div>
+
+    <div class="px-5 py-4 border-b border-[var(--line)]">
+      <div class="flex items-center justify-between mb-3">
+        <span class="label" title="대화 진행을 기준으로 한 표시이며, 실제 성취 평가가 아닙니다">진행 현황 · 대화 기준</span>
+        <span id="mastery-label" class="text-[11px] font-medium text-[var(--forest)]">0%</span>
+      </div>
+      <div class="h-1.5 bg-[var(--surface)] overflow-hidden mb-4" aria-label="대화 진행률">
+        <div id="mastery-bar" class="h-full bg-[var(--forest)] transition-all duration-500" style="width:0%"></div>
+      </div>
+      <ol id="concept-map" class="space-y-1.5"></ol>
+      <div id="concept-legend" class="flex gap-3 mt-3 text-[10px] text-[var(--slate)]">
+        <span class="flex items-center gap-1"><i class="status-dot"></i>점검 전</span>
+        <span class="flex items-center gap-1"><i class="status-dot learning"></i>다루는 중</span>
+        <span class="flex items-center gap-1"><i class="status-dot mastered"></i>다룸</span>
+      </div>
+    </div>
+
+    <div class="px-5 py-4 space-y-2 border-b border-[var(--line)]">
+      <button id="newchat" class="w-full h-9 rounded-full border border-[var(--forest)] text-[var(--forest)] text-[13px] font-medium hover:bg-[var(--forest)] hover:text-white transition-colors">+ 새 학습 세션</button>
+      <button id="upload-btn" class="w-full h-9 rounded-full border border-[var(--line)] text-[13px] text-[var(--graphite)] hover:border-[var(--forest)]">강의자료 올리기</button>
+      <input id="file" type="file" accept=".txt,.md,.pdf" class="hidden">
+      <p id="upload-status" class="text-[11px] text-[var(--slate)]" aria-live="polite"></p>
+    </div>
+
+    <div class="px-5 pt-4"><span class="label">지난 학습</span></div>
+    <div id="sidebar-list" class="thin-scroll flex-1 overflow-y-auto px-3 py-2"></div>
+    <button id="reflect-open" class="m-4 mt-2 h-10 bg-[var(--sage-soft)] text-[var(--forest)] text-[13px] font-medium hover:bg-[var(--sage)] flex items-center justify-center gap-1">
+      끝내기 →
+    </button>
+  </aside>
+
+  <div class="flex-1 min-w-0 flex flex-col">
+    <header class="border-b border-[var(--line)] px-4 md:px-6 py-3 bg-white shadow-sm relative z-10">
+      <div class="flex items-center gap-2 flex-wrap">
+        <button id="menu-btn" aria-label="메뉴 열기" class="md:hidden w-8 h-8 border border-[var(--line)] text-[var(--graphite)] flex items-center justify-center shrink-0">☰</button>
+        <span id="lecture-badge" class="label !text-[var(--forest)] px-2 py-1 rounded-full bg-[var(--sage)]">언어학입문</span>
+        <span class="text-[var(--silver)]">/</span>
+        <strong id="concept-title" class="text-[14px]">결합확률분포</strong>
+        <span id="stage-badge" class="ml-auto text-[12px] text-[var(--forest)] font-medium">1단계 · 진단</span>
+      </div>
+      <div id="context-detail" class="text-[11px] text-[var(--slate)] mt-1">목표: 결합분포를 이해하기 위한 확률의 기초를 점검합니다.</div>
+    </header>
+
+    <section class="flex-1 min-h-0 flex flex-col" aria-label="소크라테스 대화">
+      <div id="log" class="thin-scroll flex-1 overflow-y-auto">
+        <div class="max-w-3xl mx-auto px-4 md:px-8 py-9 space-y-8" id="log-inner"></div>
+      </div>
+      <footer class="bg-white">
+        <div class="max-w-3xl mx-auto px-4 md:px-8 py-4">
+          <div class="flex gap-2 mb-2">
+            <button id="tool-hint" class="flex-1 border border-[var(--line)] py-2.5 text-[12px] hover:border-[var(--forest)] hover:text-[var(--forest)]">💡 힌트 <span id="hint-n">0</span>/3</button>
+            <button id="tool-blank" class="flex-1 border border-[var(--line)] py-2.5 text-[12px] hover:border-[var(--forest)] hover:text-[var(--forest)]">✏️ 빈칸으로 연습</button>
+            <button id="tool-explain" class="flex-1 border border-[var(--line)] py-2.5 text-[12px] hover:border-[var(--forest)] hover:text-[var(--forest)]">🗣️ 내 말로 설명</button>
+          </div>
+          <div class="input-row flex items-center gap-2 border border-[var(--line)] rounded-2xl px-4 py-2.5 focus-within:border-[var(--forest)]">
+            <textarea id="in" rows="1" placeholder="생각을 적어보세요…  (수식은 $ … $)" aria-label="답변 입력" class="flex-1 resize-none outline-none text-[15px] leading-6 max-h-32 bg-transparent"></textarea>
+            <button id="send" aria-label="답변 보내기" class="shrink-0 w-8 h-8 rounded-full bg-[var(--forest)] hover:bg-[var(--forest-dark)] text-white flex items-center justify-center disabled:opacity-30">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <p class="text-[11px] text-center text-[var(--slate)] mt-2">정답보다 생각의 과정을 먼저 봅니다 · Enter 전송 / Shift+Enter 줄바꿈</p>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <dialog id="reflection-dialog" class="w-[min(92vw,520px)] p-0 bg-white shadow-xl">
+    <form id="reflection-form" method="dialog">
+      <div class="brand-accent"></div>
+      <div class="p-6">
+        <span class="label">세션 성찰 · 마무리</span>
+        <h2 class="serif text-[25px] mt-2">오늘의 생각을 정리하고 마칠까요?</h2>
+        <label class="block mt-5 text-[13px] font-medium" for="learned">오늘 배운 것</label>
+        <textarea id="learned" required rows="2" class="mt-2 w-full border border-[var(--line)] rounded-xl p-3 text-[14px] resize-none transition-shadow duration-200 focus:shadow-md" placeholder="내 말로 한 문장"></textarea>
+        <label class="block mt-4 text-[13px] font-medium" for="confused">아직 헷갈리는 것</label>
+        <textarea id="confused" required rows="2" class="mt-2 w-full border border-[var(--line)] rounded-xl p-3 text-[14px] resize-none transition-shadow duration-200 focus:shadow-md" placeholder="다음에 확인할 질문"></textarea>
+        <fieldset class="mt-4">
+          <legend class="text-[13px] font-medium">지금 얼마나 설명할 수 있나요?</legend>
+          <div class="flex gap-2 mt-2">
+            <label class="flex-1"><input class="peer sr-only" type="radio" name="confidence" value="아직 어려움" required><span class="block border rounded-xl p-2 text-center text-[12px] transition-all duration-200 peer-checked:bg-[var(--sage)] peer-checked:border-[var(--forest)] peer-checked:shadow-md hover:-translate-y-0.5">아직 어려움</span></label>
+            <label class="flex-1"><input class="peer sr-only" type="radio" name="confidence" value="조금 설명 가능"><span class="block border rounded-xl p-2 text-center text-[12px] transition-all duration-200 peer-checked:bg-[var(--sage)] peer-checked:border-[var(--forest)] peer-checked:shadow-md hover:-translate-y-0.5">조금 설명 가능</span></label>
+            <label class="flex-1"><input class="peer sr-only" type="radio" name="confidence" value="혼자 설명 가능"><span class="block border rounded-xl p-2 text-center text-[12px] transition-all duration-200 peer-checked:bg-[var(--sage)] peer-checked:border-[var(--forest)] peer-checked:shadow-md hover:-translate-y-0.5">혼자 설명 가능</span></label>
+          </div>
+        </fieldset>
+        <div class="flex justify-end gap-2 mt-6">
+          <button type="button" id="reflect-close" class="px-4 py-2 rounded-xl text-[13px] text-[var(--slate)] transition-colors duration-200 hover:bg-[var(--surface)]">계속 학습</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-[var(--forest)] text-white text-[13px] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">성찰하고 마치기</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const logInner = $('log-inner'), logBox = $('log'), inp = $('in'), btn = $('send');
+const sidebarList = $('sidebar-list'), STORE_KEY = 'ares_learning_chats';
+const loadChats = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); } catch { return []; } };
+const saveChats = () => localStorage.setItem(STORE_KEY, JSON.stringify(chats));
+const freshLearning = () => ({turn:0, hint:0, stage:0, concept:0, done:false});
+const LAST_KEY = 'ares_last_session';
+let subjectId = 'info';
+let SUBJECTS = [];  // /api/subjects 로 채움
+const SUBJECT_CONCEPTS = {
+  ling: ['기술문법 관점', '음소·변이음', '형태·통사 구조', '의미·맥락'],
+  survey: ['개념화·측정', '표집·대표성', '분포·표집분포', '추론·p값'],
+  bizstat: ['자료 요약', '확률·확률분포', '표본평균분포', '추정·가설검정'],
+  acct: ['회계등식·차변대변', '발생주의·수정분개', '회계순환·마감', '개별 계정'],
+  info: ['확률 기초', '확률과정·마르코프', '엔트로피·상호정보량', '부호화·채널'],
+  ml: ['선형대수·기하', '베이지안 확률', '모델복잡도·손실', '체인룰·역전파'],
+};
+let concepts = SUBJECT_CONCEPTS.info;
+const stages = ['진단', '선수개념 보충', '적용', '자기설명'];
+// 힌트 위계(관찰→연결→첫걸음)는 과목별로 저작. 업로드 과목은 LLM 구조화 출력이 필요해 도구를 숨긴다.
+const SUBJECT_HINTS = {
+  ling: [
+    ['관찰 힌트', '두 소리가 실제로 어떻게 다른지 먼저 적어보세요. 조음 위치인가요, 성대 떨림인가요?'],
+    ['연결 힌트', '그 차이만 바꿨을 때 단어의 뜻이 달라지는 짝(최소대립쌍)을 찾아보세요.'],
+    ['첫걸음 힌트', '한국어 ‘불/뿔/풀’처럼 한 자리만 교체되는 세 단어부터 써보세요.']
+  ],
+  survey: [
+    ['관찰 힌트', '지금 다루는 것이 표본 하나의 자료인지, 여러 표본에서 나온 통계량인지 구분해 적어보세요.'],
+    ['연결 힌트', '표본을 다시 뽑으면 그 값이 달라질지 생각해보세요. 달라진다면 그것은 확률변수입니다.'],
+    ['첫걸음 힌트', '같은 모집단에서 100명씩 세 번 뽑아 평균 세 개를 적어보는 것부터 시작해보세요.']
+  ],
+  acct: [
+    ['관찰 힌트', '이 거래로 무엇이 들어오고 무엇이 나갔는지 두 가지를 나눠 적어보세요. 한쪽만 보이면 아직 절반입니다.'],
+    ['연결 힌트', '각 항목이 자산·부채·자본·수익·비용 중 무엇인지 먼저 정하세요. 차변·대변은 그 성격이 정해준 결과입니다.'],
+    ['첫걸음 힌트', '현금이 오간 시점이 아니라 ‘그 대가를 실제로 제공했거나 받은 시점’이 언제인지부터 표시해보세요.']
+  ],
+  bizstat: [
+    ['관찰 힌트', '지금 다루는 것이 ① 모집단 ② 뽑은 표본 하나의 자료 ③ 표본평균들의 분포 중 무엇인지 표시해보세요.'],
+    ['연결 힌트', '표본을 다시 뽑으면 그 값이 달라지는지 생각해보세요. 달라진다면 그것은 통계량이고, 통계량에는 자기 분포가 있습니다.'],
+    ['첫걸음 힌트', '작은 예로 줄여보세요. 값이 6개인 모집단에서 크기 2의 표본을 모두 뽑아 평균을 적어보는 것부터 시작합니다.']
+  ],
+  info: [
+    ['관찰 힌트', '지금 구하려는 것이 H(X)인지 H(X|Y)인지, 조건이 붙어 있는지 먼저 표시해보세요.'],
+    ['연결 힌트', '엔트로피는 확률의 로그에 대한 기댓값입니다. 각 결과의 확률을 적고 그 옆에 $-\\log_2 p$를 써보세요.'],
+    ['첫걸음 힌트', '가장 작은 예인 동전 하나($p,\\,1-p$)로 줄여서 이진 엔트로피부터 계산해보세요.']
+  ],
+};
+let hintTexts = SUBJECT_HINTS.ling;
+
+let chats = loadChats(), currentId = null, messages = [], learning = freshLearning();
+let lectureName = '언어학입문';   // 기본 과목(app.py PRESETS 첫 항목)과 일치
+
+function escapeHtml(text){
+  const el = document.createElement('span');
+  el.textContent = text;
+  return el.innerHTML;
+}
+
+// KaTeX 자동 렌더 옵션 ($...$, $$...$$, \(...\), \[...\])
+const KATEX_OPTS = {
+  delimiters: [
+    {left:'$$', right:'$$', display:true},
+    {left:'\\[', right:'\\]', display:true},
+    {left:'$', right:'$', display:false},
+    {left:'\\(', right:'\\)', display:false},
+  ],
+  throwOnError:false,
+};
+function renderMathIn(el){ if(window.renderMathInElement && el) try{ renderMathInElement(el, KATEX_OPTS); }catch{} }
+
+// **한글** 처럼 조사가 바로 붙으면 CommonMark가 볼드로 인식 못 함 → 전처리. 이후 DOMPurify로 정화.
+// 수식($...$ 등)은 마크다운이 f_X, \frac 같은 걸 망가뜨리므로 먼저 빼내고 렌더 후 복원 → KaTeX가 처리.
+function renderMd(text){
+  const math = [];
+  // ponytail: 통화 표기($5)는 이 도메인(확률·통계)에 거의 없어 $...$ 오탐 무시
+  let src = String(text || '').replace(/\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$[^$\n]+?\$/g,
+    m => { math.push(m); return `MJXMATH${math.length - 1}MJXEND`; });
+  let html = marked.parse(src.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>'));
+  if(window.DOMPurify) html = DOMPurify.sanitize(html);
+  // 수식 안의 < > &는 이스케이프해 innerHTML 주입 방지 (KaTeX는 textContent로 원문 delimiter를 읽음)
+  return html.replace(/MJXMATH(\d+)MJXEND/g, (_, i) => escapeHtml(math[+i]));
+}
+
+function renderSidebar(){
+  sidebarList.innerHTML = '';
+  [...chats].reverse().forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'group flex items-center gap-1 px-2 py-2 cursor-pointer text-[13px] ' +
+      (c.id === currentId ? 'bg-[var(--surface)] font-medium' : 'hover:bg-[var(--surface)] text-[var(--graphite)]');
+    const title = document.createElement('span');
+    title.className = 'flex-1 truncate';
+    title.textContent = c.title;
+    const del = document.createElement('button');
+    del.className = 'opacity-0 group-hover:opacity-60 hover:!opacity-100 px-1';
+    del.title = '삭제'; del.textContent = '✕';
+    title.onclick = () => openChat(c.id);
+    del.onclick = e => { e.stopPropagation(); deleteChat(c.id); };
+    item.append(title, del);
+    sidebarList.appendChild(item);
+  });
+}
+
+function renderLearning(){
+  const mastered = Math.min(learning.concept, concepts.length);
+  const progress = Math.round(((mastered + Math.min(learning.turn / 4, 1)) / concepts.length) * 100);
+  $('mastery-label').textContent = progress + '%';
+  $('mastery-bar').style.width = progress + '%';
+  $('stage-badge').textContent = learning.done ? '세션 완료 🎉' : `${learning.stage + 1}단계 · ${stages[learning.stage]}`;
+  $('concept-title').textContent = concepts[Math.min(learning.concept, concepts.length - 1)];
+  $('concept-map').innerHTML = concepts.map((name, i) => {
+    const state = i < learning.concept ? 'mastered' : i === learning.concept ? 'learning' : '';
+    const label = state === 'mastered' ? '다룸' : state === 'learning' ? '다루는 중' : '점검 전';
+    return `<li class="flex items-center gap-2 px-2 py-1.5 ${state === 'learning' ? 'bg-[var(--sage-soft)]' : ''}">
+      <i class="status-dot ${state}"></i><span class="flex-1 text-[13px]">${name}</span>
+      <span class="text-[10px] text-[var(--slate)]">${label}</span></li>`;
+  }).join('');
+  updateHintCount();
+}
+
+function row(role){
+  const wrap = document.createElement('div');
+  wrap.className = (role === 'user' ? 'flex justify-end' : 'flex justify-start') + ' msg-in';
+  const bubble = document.createElement('div');
+  bubble.className = role === 'user'
+    ? 'max-w-[82%] bg-[var(--surface)] border border-[var(--line)] px-4 py-2.5 leading-6 rounded-2xl shadow-sm'
+    : 'w-full max-w-none text-[15.5px] leading-8 prose';
+  wrap.appendChild(bubble); logInner.appendChild(wrap);
+  return bubble;
+}
+
+// 근거칩: 클릭(터치·키보드 지원)하면 발췌가 펼쳐지는 details. 라벨은 강의명 중복 제거해 축약.
+function sourceChips(sources){
+  if(!sources?.length) return '';
+  return `<div class="mt-3 flex flex-wrap gap-1 items-start">${sources.map(s => {
+    const short = escapeHtml(String(s.label || '').replace(lectureName + ' · ', ''));
+    return `<details class="inline-block">
+      <summary class="text-[10px] px-2 py-1 rounded-full bg-[var(--sage-soft)] text-[var(--forest)] select-none transition-transform duration-200 hover:-translate-y-0.5">근거 · ${short}</summary>
+      <p class="text-[11px] leading-4 text-[var(--slate)] bg-white border border-[var(--line)] rounded-xl shadow-sm p-2 mt-1 max-w-[280px]">${escapeHtml(s.excerpt || '')}</p>
+    </details>`;
+  }).join('')}</div>`;
+}
+
+// 대화 흐름 안 빠른 응답 칩 (힌트/빈칸/설명 도구는 입력창 위 고정 툴바)
+function inlineActions(){
+  const initial = !messages.length;
+  const options = initial
+    ? ['이 과목의 선수개념을 진단해주세요', '무엇부터 알아야 하는지 짚어주세요', '예시로 시작할래요']
+    : learning.turn % 3 === 0
+      ? ['왜 그런지 제 말로 설명해볼게요', '반례를 하나 들어주세요', '다음 단계로 갈래요']
+      : ['이해했어요. 확인 문제 주세요', '더 작은 예가 필요해요', '아직 잘 모르겠어요'];
+  const box = document.createElement('div');
+  box.className = 'w-full msg-in';
+  box.innerHTML = `
+    <p class="text-[11px] text-[var(--slate)] mb-1">${initial ? '어디서 시작할까요?' : '이어서 물어볼 만한 것'}</p>
+    <div class="border-t border-[var(--line)]">${options.map((o, i) =>
+      `<button data-choice="${i}" class="group w-full flex items-center justify-between gap-4 text-left px-1 py-3.5 border-b border-[var(--line)] text-[14.5px] text-[var(--graphite)] hover:text-[var(--forest)] transition-colors">
+        <span>${o}</span>
+        <span class="text-[var(--slate)] group-hover:text-[var(--forest)] group-hover:translate-x-1 transition-transform duration-200">→</span>
+      </button>`
+    ).join('')}</div>`;
+  logInner.appendChild(box);
+  box.querySelectorAll('[data-choice]').forEach((el, i) => el.onclick = () => sendText(options[i]));
+}
+
+function updateHintCount(){ const n = $('hint-n'); if(n) n.textContent = Math.min(learning.hint, 3); }
+
+// 힌트 카드 렌더러 — messages에 저장된 tool 이벤트에서 복원 가능
+function hintCard(m){
+  const wrap = document.createElement('div');
+  wrap.className = 'flex justify-start msg-in';
+  wrap.innerHTML = `<div class="max-w-[90%] border-l-2 border-[var(--sage)] pl-4 py-1">
+    <span class="text-[11px] font-medium text-[var(--forest)]">💡 ${escapeHtml(m.title)}</span>
+    <p class="text-[13px] leading-6 text-[var(--graphite)] mt-1">${escapeHtml(m.text)}</p></div>`;
+  return wrap;
+}
+
+// 점진 힌트를 대화 흐름 안에 한 단계씩. messages에 저장돼 새로고침에도 유지. 3단계 후엔 튜터에게 유도.
+function revealHint(){
+  if(learning.hint >= 3){
+    if(learning.hint === 3){
+      learning.hint = 4; persistCurrent(false);
+      sendText('힌트를 다 봤지만 아직 막혀 있어요. 정답을 바로 말하지 말고, 풀이의 첫 단계부터 아주 작게 짚어 주세요.');
+    }
+    return;
+  }
+  const [title, text] = hintTexts[learning.hint];
+  const m = {role:'hint', title, text};
+  messages.push(m);
+  logInner.appendChild(hintCard(m));
+  learning.hint += 1; updateHintCount();
+  persistCurrent(false); scrollBottom();
+}
+
+// 빈칸 연습 문항도 과목별 저작. 오답 시 정답 대신 되질문을 돌려준다(워크드예제 → 페이딩).
+const SUBJECT_BLANK = {
+  ling: {
+    pre: '‘불 / 뿔 / 풀’은 첫 자음만 다른데 뜻이 모두 달라집니다. 이때 세 소리를 부르는 이름은',
+    post: '입니다.', answer: '음소', ph: '한 단어',
+    ok: v => /음소|phoneme/i.test(v),
+    retry: '뜻을 구별해 주는 최소 단위를 뭐라고 불렀는지 떠올려보세요. 변이음과는 무엇이 다를까요? ',
+    next: '그럼 같은 자리에서 바꿔도 뜻이 달라지지 않는 소리는 무엇이라 부르는지 본인의 말로 이어서 설명해 주세요.'
+  },
+  survey: {
+    pre: '같은 모집단에서 100명씩 여러 번 뽑아 얻은 <b>평균들</b>이 이루는 분포를',
+    post: '라고 부릅니다.', answer: '표집분포', ph: '직접 입력',
+    ok: v => /표집분포|표본추출분포|samplingdistribution/i.test(v.replace(/\s/g, '')),
+    retry: '표본 하나의 자료가 흩어진 모양이 아니라, 표본을 다시 뽑을 때 통계량이 흔들리는 분포입니다. ',
+    next: '그럼 이 분포의 표준편차를 뭐라고 부르는지, 그리고 표본 크기를 키우면 왜 그 값이 줄어드는지 이어서 설명해 주세요.'
+  },
+  acct: {
+    pre: '1년치 보험료 120만 원을 현금으로 <b>미리</b> 냈습니다. 지급한 그 시점에 인식되는 비용은',
+    post: '원입니다.', answer: '0', ph: '금액',
+    ok: v => /^\s*0\s*(원)?\s*$/.test(v) || /없|아니/.test(v),
+    retry: '아직 보험 서비스를 하루도 받지 않았습니다. 발생주의에서 비용은 현금을 낼 때가 아니라 언제 인식할까요? ',
+    next: '그럼 지급한 120만 원은 그 시점에 무엇으로 남아 있을까요? 계정의 성격까지 본인의 말로 설명해 주세요.'
+  },
+  bizstat: {
+    pre: '표본 크기를 4명에서 100명으로 늘리면, 모집단 표준편차는 그대로인데 <b>표본평균의 표준편차</b>(표준오차)는',
+    post: '.', answer: '작아진다', ph: '커진다 / 작아진다',
+    ok: v => /작아|줄어|감소|낮아/.test(v),
+    retry: '표준오차는 모집단 표준편차를 $\\sqrt{n}$으로 나눈 값입니다. $n$이 커지면 이 값은 어떻게 될까요? ',
+    next: '그럼 왜 표본을 많이 뽑을수록 추정이 더 믿을 만해지는지, 표준오차와 연결해서 본인의 말로 설명해 주세요.'
+  },
+  info: {
+    pre: '앞·뒤가 각각 1/2인 <b>공정한 동전 한 번</b>의 엔트로피 $H(X)$는',
+    post: '비트입니다.', answer: '1', ph: '직접 입력',
+    ok: v => /^\s*1(\.0*)?\s*(비트|bit)?\s*$/i.test(v),
+    retry: '엔트로피는 $-\\sum p\\log_2 p$ 입니다. $p=1/2$일 때 $-\\log_2(1/2)$이 얼마인지 먼저 계산해보세요. ',
+    next: '그럼 앞면이 나올 확률이 0.9인 동전은 엔트로피가 1보다 클까요, 작을까요? 이유까지 본인의 말로 설명해 주세요.'
+  },
+};
+let blankQ = SUBJECT_BLANK.ling;
+function blankCard(m){
+  const wrap = document.createElement('div');
+  wrap.className = 'flex justify-start msg-in';
+  wrap.innerHTML = `<div class="max-w-[90%] bg-white border border-[var(--line)] p-4 text-[13px] leading-6 rounded-2xl shadow-sm">
+    <span class="text-[11px] font-medium text-[var(--forest)]">✏️ 빈칸 채우기 · 작은 예로 연습</span>
+    <p class="mt-2">${blankQ.pre}
+      ${m.done
+        ? `<span class="blank filled">${escapeHtml(m.val || blankQ.answer)}</span>`
+        : `<input data-blank-in class="blank bg-transparent outline-none" style="width:100px" placeholder="${blankQ.ph}">
+           <button data-blank-ok class="ml-1 px-2 py-0.5 border border-[var(--forest)] text-[var(--forest)] text-[11px] hover:bg-[var(--sage-soft)]">확인</button>`}
+      ${blankQ.post}</p>
+    ${m.done
+      ? `<p class="mt-2 text-[var(--slate)]">${blankQ.next}</p>`
+      : `<p data-blank-msg class="mt-2 text-[var(--slate)]">빈칸을 직접 채워보세요. <button data-blank-give class="underline underline-offset-2">모르겠어요</button></p>`}
+    </div>`;
+  if(!m.done){
+    const input = wrap.querySelector('[data-blank-in]');
+    const check = () => {
+      if(blankQ.ok(input.value)){ m.done = true; m.val = input.value.trim(); persistCurrent(false); renderMessages(); }
+      else wrap.querySelector('[data-blank-msg]').firstChild.textContent = blankQ.retry;
+    };
+    wrap.querySelector('[data-blank-ok]').onclick = check;
+    input.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); check(); } });
+    wrap.querySelector('[data-blank-give]').onclick = () => { m.done = true; m.val = blankQ.answer; persistCurrent(false); renderMessages(); };
+  }
+  return wrap;
+}
+
+function insertBlank(){
+  const m = {role:'blank', done:false, val:''};
+  messages.push(m);
+  logInner.appendChild(blankCard(m));
+  persistCurrent(false); scrollBottom();
+}
+
+// 성찰 완료 후 마무리 박스
+function completionBox(){
+  const box = document.createElement('div');
+  box.className = 'ml-0 max-w-[90%] border-l-2 border-[var(--sage)] pl-4 msg-in';
+  box.innerHTML = `<p class="text-[13px] text-[var(--graphite)] mb-2">🎉 오늘 학습을 성찰로 마무리했어요.</p>
+    <button data-done-new class="px-3 py-2 rounded-xl border border-[var(--forest)] text-[var(--forest)] text-[12px] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:bg-[var(--sage-soft)]">+ 새 학습 세션 시작</button>`;
+  logInner.appendChild(box);
+  box.querySelector('[data-done-new]').onclick = newChat;
+}
+
+function renderMessages(){
+  logInner.innerHTML = '';
+  const intro = row('assistant');
+  intro.innerHTML = `<span class="label !text-[var(--forest)]">오늘의 학습 목표</span>
+    <p class="serif text-[22px] leading-7 mt-2">답을 찾기 전에,<br>내가 아는 것부터 확인해요.</p>
+    <p class="text-[13px] text-[var(--slate)] mt-2"><b>${escapeHtml(lectureName)}</b>의 선수개념을 짧은 질문으로 진단합니다.</p>`;
+  messages.forEach(m => {
+    if(m.role === 'hint') return logInner.appendChild(hintCard(m));
+    if(m.role === 'blank') return logInner.appendChild(blankCard(m));
+    const b = row(m.role);
+    if(m.role === 'user') b.textContent = m.text;
+    else b.innerHTML = renderMd(m.text || '(응답 없음)') + sourceChips(m.sources);
+  });
+  const lastDialog = [...messages].reverse().find(m => m.role === 'user' || m.role === 'assistant');
+  if(learning.done) completionBox();
+  else if(!lastDialog || lastDialog.role === 'assistant') inlineActions();
+  renderMathIn(logInner);
+  scrollBottom();
+}
+
+function typingRow(){
+  const b = row('assistant');
+  b.innerHTML = '<span class="inline-flex gap-1 text-[var(--slate)]"><span class="dot">●</span><span class="dot">●</span><span class="dot">●</span></span>';
+  return b.parentElement;
+}
+
+function scrollBottom(){ requestAnimationFrame(() => { logBox.scrollTop = logBox.scrollHeight; }); }
+
+function advanceLearning(){
+  learning.turn += 1;
+  if(learning.turn >= 2) learning.stage = 1;
+  if(learning.turn >= 4) learning.stage = 2;
+  if(learning.turn >= 6) learning.stage = 3;
+  learning.concept = Math.min(Math.floor(learning.turn / 2), concepts.length - 1);
+  renderLearning();
+}
+
+function newChat(){
+  currentId = null; messages = []; learning = freshLearning();
+  localStorage.removeItem(LAST_KEY);
+  renderSidebar(); renderLearning(); renderMessages(); inp.focus();
+}
+
+function openChat(id){
+  const c = chats.find(x => x.id === id);
+  if(!c) return;
+  currentId = id; messages = c.messages || []; learning = c.learning || freshLearning();
+  renderSidebar(); renderLearning(); renderMessages();
+}
+
+function deleteChat(id){
+  chats = chats.filter(c => c.id !== id); saveChats();
+  if(id === currentId) newChat(); else renderSidebar();
+}
+
+function persistCurrent(create = true){
+  if(currentId === null && create){
+    currentId = Date.now().toString();
+    const first = messages.find(m => m.role === 'user');
+    chats.push({id:currentId, title:(first?.text || '새 학습').slice(0, 30), messages, learning});
+  } else if(currentId !== null) {
+    const c = chats.find(x => x.id === currentId);
+    if(c){ c.messages = messages; c.learning = learning; }
+  }
+  if(currentId !== null) localStorage.setItem(LAST_KEY, currentId);
+  saveChats(); renderSidebar();
+}
+
+async function sendText(text){
+  const t = (text ?? inp.value).trim();
+  if(!t || btn.disabled) return;
+  inp.value = ''; inp.style.height = 'auto';
+  row('user').textContent = t;
+  messages.push({role:'user', text:t}); persistCurrent();
+  btn.disabled = true;
+  const placeholder = typingRow();
+  try{
+    const r = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:messages.filter(m => m.role === 'user' || m.role === 'assistant').map(({role,text}) => ({role,text}))})
+    });
+    if(!r.ok) throw new Error(`서버 응답 ${r.status}`);
+    const j = await r.json();
+    placeholder.remove();
+    messages.push({role:'assistant', text:j.reply || '(응답 없음)', sources:j.sources || []});
+    advanceLearning(); persistCurrent(); renderMessages();
+  }catch(e){
+    placeholder.remove();
+    const b = row('assistant');
+    b.innerHTML = `<span class="text-red-600">응답을 불러오지 못했어요. ${escapeHtml(e.message)}</span>`;
+  }finally{
+    btn.disabled = false; inp.focus(); scrollBottom();
+  }
+}
+
+function applySubject(id, name){
+  subjectId = id || 'custom';
+  lectureName = name || '강의자료';
+  concepts = SUBJECT_CONCEPTS[subjectId] || [];
+  $('lecture-badge').textContent = lectureName;
+  const hasMap = concepts.length > 0;      // 프리셋엔 개념맵, 커스텀 업로드는 없음
+  // 힌트·빈칸은 저작된 과목에만 노출 (업로드 과목은 LLM 구조화 출력 필요 → 로드맵)
+  hintTexts = SUBJECT_HINTS[subjectId] || [];
+  blankQ = SUBJECT_BLANK[subjectId] || SUBJECT_BLANK.ling;
+  $('tool-hint').classList.toggle('hidden', !SUBJECT_HINTS[subjectId]);
+  $('tool-blank').classList.toggle('hidden', !SUBJECT_BLANK[subjectId]);
+  $('concept-map').classList.toggle('hidden', !hasMap);
+  $('concept-legend').classList.toggle('hidden', !hasMap);
+}
+
+// 과목 선택/업로드는 별도 페이지(/start)에서. 여기선 현재 과목만 반영.
+
+inp.addEventListener('input', () => { inp.style.height = 'auto'; inp.style.height = inp.scrollHeight + 'px'; });
+inp.addEventListener('keydown', e => { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendText(); } });
+btn.onclick = () => sendText();
+$('newchat').onclick = newChat;
+$('tool-hint').onclick = revealHint;
+$('tool-blank').onclick = insertBlank;
+$('tool-explain').onclick = () => {
+  inp.value = '제가 이해한 내용을 제 말로 설명하면, '; inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+};
+// 모바일: 사이드바 토글 (바깥 클릭 시 닫힘)
+$('menu-btn').onclick = e => { e.stopPropagation(); $('left-panel').classList.toggle('open'); };
+document.addEventListener('click', e => {
+  const lp = $('left-panel');
+  if(lp.classList.contains('open') && !lp.contains(e.target)) lp.classList.remove('open');
+});
+
+const reflectionDialog = $('reflection-dialog');
+$('reflect-open').onclick = () => reflectionDialog.showModal();
+$('reflect-close').onclick = () => reflectionDialog.close();
+$('reflection-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const data = new FormData(e.currentTarget);
+  const text = `오늘 학습을 마치며 정리해볼게요.\n- 오늘 배운 것: ${$('learned').value.trim()}\n- 아직 헷갈리는 것: ${$('confused').value.trim()}\n- 자기평가: ${data.get('confidence')}\n이 성찰을 짧게 확인해주고, 다음에 이어서 볼 한 가지만 제안해 주세요.`;
+  learning.done = true;  // 세션 완료 상태 → 응답 후 마무리 박스 표시
+  reflectionDialog.close(); e.currentTarget.reset(); sendText(text);
+});
+
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+}
+async function extractPdfText(file){
+  const doc = await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+  let text = '';
+  for(let i = 1; i <= doc.numPages; i++){
+    const content = await (await doc.getPage(i)).getTextContent();
+    text += `\n===== p${i} =====\n` + content.items.map(it => it.str).join(' ');
+  }
+  return text;
+}
+
+const fileInp = $('file');
+$('upload-btn').onclick = () => fileInp.click();
+fileInp.addEventListener('change', async () => {
+  const file = fileInp.files[0];
+  if(!file) return;
+  $('upload-status').textContent = '읽는 중…'; $('upload-btn').disabled = true;
+  try{
+    const text = file.name.toLowerCase().endsWith('.pdf') ? await extractPdfText(file) : await file.text();
+    const r = await fetch('/api/upload', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:file.name.replace(/\.[^.]+$/, ''), text})
+    });
+    if(!r.ok) throw new Error(`서버 응답 ${r.status}`);
+    const j = await r.json();
+    applySubject(j.id, j.name); $('upload-status').textContent = `✓ ${j.chunks}개 청크 인덱싱됨`;
+    newChat();
+  }catch(e){
+    $('upload-status').textContent = '업로드 실패: ' + e.message;
+  }finally{
+    $('upload-btn').disabled = false; fileInp.value = '';
+  }
+});
+
+// 과목 목록 + 현재 과목 로드
+Promise.all([
+  fetch('/api/subjects').then(r => r.json()).catch(() => ({subjects:[]})),
+  fetch('/api/lecture').then(r => r.json()).catch(() => ({})),
+]).then(([subs, cur]) => {
+  SUBJECTS = subs.subjects || [];
+  if(cur.name) applySubject(cur.id, cur.name);
+  renderLearning(); renderMessages();  // 로드된 과목으로 개념맵·대화 갱신
+});
+// 새로고침 시 마지막 세션 자동 복원
+const _last = localStorage.getItem(LAST_KEY);
+if(_last && chats.some(c => c.id === _last)) openChat(_last); else newChat();
+</script>
+</body>
+</html>

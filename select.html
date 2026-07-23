@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>과목 선택 · 선수개념 진단 튜터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<style>
+  :root{--paper:#fff;--surface:#f5f5f4;--line:#e6e6e4;--ink:#111;--graphite:#3a3a3a;
+    --slate:#767676;--forest:#294843;--forest-dark:#1d3a34;--sage:#c9e3c2;--sage-soft:#eff7ed;--blush:#eaa9d0;
+    --ease-out:cubic-bezier(.16,1,.3,1);--shadow-md:0 10px 26px -12px rgba(17,17,17,.18);}
+  *{box-sizing:border-box}
+  body{background:var(--surface);color:var(--ink);font-family:"Noto Sans KR",-apple-system,system-ui,sans-serif;margin:0}
+  .serif{font-family:"Gowun Dodum","Noto Sans KR",sans-serif}
+  .label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate)}
+  .brand-accent{height:5px;background:linear-gradient(90deg,var(--forest) 0 34%,var(--sage) 34% 67%,var(--blush) 67% 100%)}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:20px;transition:transform .25s var(--ease-out),box-shadow .25s var(--ease-out),border-color .2s ease;cursor:pointer}
+  .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--forest)}
+  .card:focus-visible{outline:2px solid var(--forest);outline-offset:2px}
+  .upload-card{border-style:dashed}
+  .dot{display:inline-flex;gap:4px}.dot i{width:6px;height:6px;border-radius:50%;background:var(--sage);animation:blink 1.2s infinite}
+  .dot i:nth-child(2){animation-delay:.2s}.dot i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{50%{opacity:.2}}
+</style>
+</head>
+<body>
+  <div class="brand-accent"></div>
+  <main class="max-w-3xl mx-auto px-5 py-14 md:py-20">
+    <a href="/" class="serif text-[18px] text-[var(--forest)] hover:opacity-70 inline-block">← 선수개념 진단 튜터</a>
+    <div class="label mt-8">STEP 1 · 과목 선택</div>
+    <h1 class="serif text-[30px] md:text-[38px] leading-tight mt-2">무슨 과목을<br>학습할까요?</h1>
+    <p class="text-[14px] text-[var(--slate)] mt-3 leading-relaxed">
+      준비된 과목을 고르거나, 내 강의자료(PDF·필기 등)를 올리면<br class="hidden md:block">
+      그 자료를 근거로 부족한 <b class="text-[var(--graphite)]">선수개념</b>을 진단해 드립니다.
+    </p>
+
+    <div id="grid" class="grid sm:grid-cols-2 gap-4 mt-8"></div>
+
+    <p id="status" class="text-[13px] text-[var(--slate)] mt-6 min-h-[20px]" aria-live="polite"></p>
+    <input id="file" type="file" accept=".txt,.md,.pdf" class="hidden">
+  </main>
+
+<script>
+const $ = id => document.getElementById(id);
+const grid = $('grid'), statusEl = $('status'), fileInp = $('file');
+const busy = t => statusEl.innerHTML = `<span class="dot"><i></i><i></i><i></i></span> ${t}`;
+
+// 과목 카드 렌더
+function card(inner, cls=''){ const b=document.createElement('button'); b.className=`card text-left p-5 ${cls}`; b.innerHTML=inner; return b; }
+
+fetch('/api/subjects').then(r=>r.json()).then(({subjects=[]})=>{
+  subjects.forEach(s=>{
+    const c = card(`<div class="label">준비된 과목</div>
+      <div class="serif text-[22px] mt-1">${s.name}</div>
+      <div class="text-[13px] text-[var(--slate)] mt-2">선수개념 진단 바로 시작 →</div>`);
+    c.onclick = ()=>choosePreset(s.id, s.name);
+    grid.appendChild(c);
+  });
+  // 2열 격자에서 빈칸이 남지 않게: 과목 수가 짝수면 업로드 카드를 한 줄 전체로,
+  // 홀수면 마지막 줄의 빈 칸에 끼워 넣는다.
+  const wide = subjects.length % 2 === 0;
+  const up = card(wide
+    ? `<div class="w-full flex items-center justify-between gap-4">
+         <div>
+           <div class="label">내 자료</div>
+           <div class="serif text-[24px] mt-1">+ 강의자료 올리기</div>
+           <div class="text-[13px] text-[var(--slate)] mt-2">찾는 과목이 없어도 괜찮습니다</div>
+         </div>
+         <div class="text-[13px] text-[var(--slate)] shrink-0">PDF · TXT · MD 업로드 →</div>
+       </div>`
+    : `<div class="label">내 자료</div>
+       <div class="serif text-[22px] mt-1">+ 강의자료 올리기</div>
+       <div class="text-[13px] text-[var(--slate)] mt-2">PDF · TXT · MD 업로드 →</div>`,
+    'upload-card' + (wide ? ' sm:col-span-2 sm:min-h-[168px] sm:flex sm:items-center' : ''));
+  up.onclick = ()=>fileInp.click();
+  grid.appendChild(up);
+}).catch(()=>{ statusEl.textContent='과목 목록을 불러오지 못했습니다. 서버를 확인하세요.'; });
+
+async function choosePreset(id, name){
+  busy(`${name} 준비 중…`);
+  try{
+    const r = await fetch('/api/select',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    const j = await r.json(); if(j.error) throw new Error(j.error);
+    location.href = '/chat';
+  }catch(e){ statusEl.textContent = '과목 전환 실패: ' + e.message; }
+}
+
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+async function extractPdf(file){
+  const doc = await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+  let t=''; for(let i=1;i<=doc.numPages;i++){ const c=await (await doc.getPage(i)).getTextContent(); t+=`\n===== p${i} =====\n`+c.items.map(x=>x.str).join(' '); }
+  return t;
+}
+fileInp.addEventListener('change', async ()=>{
+  const f = fileInp.files[0]; if(!f) return;
+  busy(`${f.name} 읽는 중…`);
+  try{
+    const text = f.name.toLowerCase().endsWith('.pdf') ? await extractPdf(f) : await f.text();
+    const r = await fetch('/api/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:f.name.replace(/\.[^.]+$/,''), text})});
+    const j = await r.json(); if(j.error) throw new Error(j.error);
+    busy(`✓ ${j.chunks}개 청크 인덱싱됨 · 이동 중…`);
+    location.href = '/chat';
+  }catch(e){ statusEl.textContent = '업로드 실패: ' + e.message; fileInp.value=''; }
+});
+</script>
+</body>
+</html>
