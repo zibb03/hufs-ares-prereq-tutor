@@ -324,6 +324,10 @@ def start():
 def index():
     return FileResponse(HERE / "index.html")
 
+@app.get("/map")
+def kmap():
+    return FileResponse(HERE / "map.html")
+
 if __name__ == "__main__":
     # 오프라인 셀프체크: 검색 로직 + 청킹 (API 불필요)
     m = np.array([[1, 0], [0, 1], [0.9, 0.1]], dtype=float)

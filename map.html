@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지식 맵 · 선수개념 진단 튜터</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23294843'/%3E%3Cstop offset='1' stop-color='%23c9e3c2'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --ground:#f7f6f1; --panel:rgba(255,255,255,.86); --panel-brd:#e4e3dc;
+    --ink:#1c231f; --muted:#5f6a63; --faint:#8b958d;
+    --edge:#cbcfc8; --edge-pre:#c14b42;
+    --hum:#2f6b5e; --soc:#2f8177; --eng:#bd7f33; --com:#5f9e6a; --pre:#c14b42;
+    --shadow:0 18px 44px -22px rgba(20,32,28,.5);
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --ground:#121b18; --panel:rgba(24,34,30,.86); --panel-brd:#2b3a34;
+    --ink:#eaf0ec; --muted:#9fb0a7; --faint:#6f8178; --edge:#33443d; --edge-pre:#e0685e;
+    --hum:#4f9384; --soc:#41a596; --eng:#d6a154; --com:#7cbd77; --pre:#e0685e;
+    --shadow:0 22px 50px -20px rgba(0,0,0,.6);}}
+  :root[data-theme="dark"]{
+    --ground:#121b18; --panel:rgba(24,34,30,.86); --panel-brd:#2b3a34;
+    --ink:#eaf0ec; --muted:#9fb0a7; --faint:#6f8178; --edge:#33443d; --edge-pre:#e0685e;
+    --hum:#4f9384; --soc:#41a596; --eng:#d6a154; --com:#7cbd77; --pre:#e0685e;
+    --shadow:0 22px 50px -20px rgba(0,0,0,.6);}
+  :root[data-theme="light"]{
+    --ground:#f7f6f1; --panel:rgba(255,255,255,.86); --panel-brd:#e4e3dc;
+    --ink:#1c231f; --muted:#5f6a63; --faint:#8b958d; --edge:#cbcfc8; --edge-pre:#c14b42;
+    --hum:#2f6b5e; --soc:#2f8177; --eng:#bd7f33; --com:#5f9e6a; --pre:#c14b42;
+    --shadow:0 18px 44px -22px rgba(20,32,28,.5);}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--ground);color:var(--ink);
+    font-family:"Malgun Gothic","Apple SD Gothic Neo",-apple-system,system-ui,"Noto Sans KR",sans-serif;word-break:keep-all}
+  #cv{position:fixed;inset:0;display:block;touch-action:none}
+  .overlay{position:fixed;pointer-events:none;z-index:2}
+  #head{top:0;left:0;right:0;padding:18px 24px 40px;background:linear-gradient(180deg,var(--ground) 12%,transparent)}
+  #head a{pointer-events:auto;color:var(--soc);font-size:12px;font-weight:700;text-decoration:none}
+  #head a:hover{text-decoration:underline}
+  h1{margin:6px 0 0;font-size:clamp(19px,3.2vw,27px);font-weight:800;letter-spacing:-.01em}
+  .lede{margin:6px 0 0;max-width:56ch;font-size:12.5px;line-height:1.55;color:var(--muted)}
+  .lede b{color:var(--pre);font-weight:700}
+  .stat{margin:5px 0 0;font-size:11.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+  #bar{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:6;display:flex;gap:4px;padding:5px;
+    border-radius:12px;background:var(--panel);border:1px solid var(--panel-brd);backdrop-filter:blur(9px);
+    box-shadow:var(--shadow);max-width:min(calc(100vw - 120px),820px);overflow-x:auto;pointer-events:auto;
+    scrollbar-width:none}
+  #bar::-webkit-scrollbar{display:none}
+  .pill{flex:none;padding:6px 11px;border-radius:8px;border:none;background:transparent;color:var(--muted);
+    font:600 12px/1 "Malgun Gothic",system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+  .pill:hover{color:var(--ink);background:var(--ground)}
+  .pill.on{color:#fff}
+  #legend{position:fixed;left:24px;bottom:20px;z-index:3;display:flex;flex-wrap:wrap;gap:6px 13px;padding:11px 14px;
+    border-radius:13px;background:var(--panel);border:1px solid var(--panel-brd);backdrop-filter:blur(9px);
+    box-shadow:var(--shadow);pointer-events:auto;max-width:calc(100vw - 48px)}
+  .lg{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .dot{width:11px;height:11px;border-radius:50%;flex:none}.dot.ring{background:transparent;border:2px solid currentColor}
+  .sep{width:1px;height:15px;background:var(--panel-brd);margin:0 1px}
+  .hint{position:fixed;right:24px;bottom:22px;z-index:3;font-size:11px;color:var(--faint);text-align:right;pointer-events:none;line-height:1.7}
+  #tip{position:fixed;z-index:4;pointer-events:none;padding:8px 11px;border-radius:10px;max-width:240px;background:var(--panel);
+    border:1px solid var(--panel-brd);backdrop-filter:blur(9px);box-shadow:var(--shadow);font-size:12px;line-height:1.45;
+    color:var(--ink);opacity:0;transition:opacity .1s;transform:translate(-50%,-118%)}
+  #tip .t{font-weight:700}#tip .s{color:var(--muted);font-size:11px;margin-top:2px}
+  #theme{position:fixed;top:16px;right:18px;z-index:7;pointer-events:auto;width:34px;height:34px;border-radius:9px;
+    border:1px solid var(--panel-brd);background:var(--panel);backdrop-filter:blur(9px);color:var(--ink);cursor:pointer;
+    font-size:15px;display:flex;align-items:center;justify-content:center}
+  #theme:focus-visible{outline:2px solid var(--soc);outline-offset:2px}
+  @media(max-width:680px){.lede{font-size:12px}#bar{max-width:calc(100vw - 70px)}.hint{display:none}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<button id="theme" aria-label="테마 전환">◐</button>
+<div id="bar"></div>
+
+<div id="head" class="overlay">
+  <a href="/">← 튜터로</a>
+  <h1 id="title">지식 맵 · 전체</h1>
+  <p class="lede">과목별 벡터 DB의 단원 구조와 그 아래 깔린 <b>선수과목·선수개념</b>. 위에서 과목을 고르면 그 과목만 볼 수 있습니다.</p>
+  <p class="stat" id="stat"></p>
+</div>
+
+<div id="legend">
+  <span class="lg"><i class="dot" style="background:var(--hum)"></i>인문</span>
+  <span class="lg"><i class="dot" style="background:var(--soc)"></i>사회·경영</span>
+  <span class="lg"><i class="dot" style="background:var(--eng)"></i>이공</span>
+  <span class="lg"><i class="dot" style="background:var(--com)"></i>공통</span>
+  <span class="sep"></span>
+  <span class="lg"><i class="dot ring" style="color:var(--muted)"></i>단원</span>
+  <span class="lg" style="color:var(--pre)"><i class="dot" style="background:var(--pre)"></i>선수과목·선수개념</span>
+</div>
+<div class="hint">과목 선택으로 드릴다운 · 드래그 · 호버로 상세</div>
+<div id="tip"><span class="t"></span><div class="s"></div></div>
+
+<script>
+(() => {
+  const KV = {인문:'--hum', 사회:'--soc', 이공:'--eng', 공통:'--com'};
+  const subjects = [
+    {id:'ling', name:'언어학입문', short:'언어학', k:'인문', u:['언어의 특성','조음음성학','음운론(음소·변이음)','음운규칙','형태론','통사론','문법관계·의존','의미론','화용론','사회언어학','역사언어학','언어습득']},
+    {id:'survey', name:'사회과학 연구방법론', short:'사회조사', k:'사회', u:['과학적 연구논리','개념화·조작화','타당도·신뢰도','측정 척도','표집','설문지 작성','인과추론·설계','기술통계','표집분포·표준오차','가설검정·p값','교차분석·카이제곱','상관·회귀','질적 연구']},
+    {id:'bizstat', name:'경영통계학', short:'경영통계', k:'사회', u:['자료의 종류','대푯값·산포','확률 기본','확률변수·분포','표본평균분포','추정·신뢰구간','가설검정 논리','모평균 검정','모비율 검정','두 모평균 차','두 모비율 차','분산 검정']},
+    {id:'acct', name:'회계원리', short:'회계원리', k:'사회', u:['회계등식','분개·전기·시산표','발생주의·수정분개','회계순환·마감','상품매매·매출원가','재고자산','내부통제·현금','채권·대손','유형자산·감가상각','유동부채','비유동부채·화폐시간가치','자본']},
+    {id:'info', name:'AI정보이론', short:'AI정보이론', k:'이공', u:['확률 복습','독립·무상관','확률과정·WSS','마르코프 체인','엔트로피','상호정보량','KL 발산','AEP·전형집합','소스코딩·압축','엔트로피율','채널·채널용량','채널부호화 정리']},
+    {id:'ml', name:'머신러닝', short:'머신러닝', k:'이공', u:['선형대수','확률','회귀','국소학습(KNN)','PCA','MLP','FCN','하이퍼파라미터','CNN','라그랑주','SVM','손실함수','역전파']},
+    {id:'ailit', name:'AI 활용 리터러시', short:'AI리터러시', k:'공통', u:['AI 작동원리','명확한 요청','컨텍스트 제공','환각·검증','반복·수정','도구 선택','에이전트','개인정보·책임','무료도구 한계']},
+  ];
+  const prereqs = [
+    {id:'P_prob', name:'확률·통계', to:['survey','bizstat','info','ml'], sub:['확률의 정의·공리','조건부확률·베이즈','확률변수','확률분포(정규·이항)','기댓값·분산','결합·조건부 분포','독립성','표본분포·표준오차','큰수법칙·중심극한정리','추정·가설검정 기초']},
+    {id:'P_lin', name:'선형대수', to:['ml','info'], sub:['벡터·벡터공간','행렬·행렬연산','선형변환(기하)','고유값·고유벡터','직교·정사영','대칭행렬·스펙트럴 정리','열공간·랭크']},
+    {id:'P_cal', name:'미적분', to:['ml'], sub:['미분·편미분','그래디언트','연쇄법칙','행렬·벡터 미분','최적화(극값)']},
+    {id:'P_hs', name:'고교 수학(함수·비율)', to:['bizstat','acct'], sub:[]},
+    {id:'P_desc', name:'기술문법 관점', to:['ling'], sub:[]},
+    {id:'P_oper', name:'개념의 조작화', to:['survey'], sub:[]},
+    {id:'P_accr', name:'발생주의·시점 판단', to:['acct'], sub:[]},
+  ];
+
+  const nodes=[], edges=[], byId={};
+  const add=n=>{nodes.push(n);byId[n.id]=n;return n;};
+  subjects.forEach(s=>{
+    add({id:s.id,label:s.name,type:'subject',k:s.k,r:20,x:0,y:0,vx:0,vy:0});
+    s.u.forEach(u=>{add({id:s.id+'::'+u,label:u,type:'unit',k:s.k,sub:s.id,r:5,x:0,y:0,vx:0,vy:0});edges.push({a:s.id,b:s.id+'::'+u,kind:'su',len:96});});
+  });
+  prereqs.forEach(p=>{
+    add({id:p.id,label:p.name,type:'pre',k:null,r:p.sub.length?16:11,x:0,y:0,vx:0,vy:0});
+    p.to.forEach(t=>edges.push({a:p.id,b:t,kind:'ps',len:210}));
+    p.sub.forEach(sc=>{add({id:p.id+'::'+sc,label:sc,type:'presub',pr:p.id,r:4.5,x:0,y:0,vx:0,vy:0});edges.push({a:p.id,b:p.id+'::'+sc,kind:'pp',len:70});});
+  });
+  const preSubj={}; edges.filter(e=>e.kind==='ps').forEach(e=>{(preSubj[e.a]=preSubj[e.a]||new Set()).add(e.b);});
+  const adj={}; nodes.forEach(n=>adj[n.id]=new Set()); edges.forEach(e=>{adj[e.a].add(e.b);adj[e.b].add(e.a);});
+
+  const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  let W,H,DPR;
+  function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);}
+  resize(); addEventListener('resize',resize);
+  const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const colOf=n=>(n.type==='pre'||n.type==='presub')?css('--pre'):css(KV[n.k]);
+
+  let focus=null, alpha=1, hover=null, drag=null, pinned=new Set(), reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  function vis(n){
+    if(!focus) return true;
+    if(n.type==='subject') return n.id===focus;
+    if(n.type==='unit') return n.sub===focus;
+    if(n.type==='pre') return preSubj[n.id]&&preSubj[n.id].has(focus);
+    if(n.type==='presub') return preSubj[n.pr]&&preSubj[n.pr].has(focus);
+    return true;
+  }
+  function reseed(){
+    const cx=W/2, cy=H/2;
+    if(!focus){
+      subjects.forEach((s,i)=>{const a=-Math.PI/2+i/subjects.length*Math.PI*2,R=Math.min(W,H)*0.33;const sn=byId[s.id];sn.x=cx+Math.cos(a)*R;sn.y=cy+Math.sin(a)*R;
+        s.u.forEach((u,j)=>{const b=a+(j-(s.u.length-1)/2)*0.19,rr=120+((j%2)*26);const un=byId[s.id+'::'+u];un.x=sn.x+Math.cos(b)*rr;un.y=sn.y+Math.sin(b)*rr;});});
+      prereqs.forEach((p,i)=>{const a=Math.PI*2*i/prereqs.length+0.4;const pn=byId[p.id];pn.x=cx+Math.cos(a)*80;pn.y=cy+Math.sin(a)*80;
+        p.sub.forEach((sc,j)=>{const b=a+(j-(p.sub.length-1)/2)*0.24;const cn=byId[p.id+'::'+sc];cn.x=pn.x+Math.cos(b)*82;cn.y=pn.y+Math.sin(b)*82;});});
+    } else {
+      const sn=byId[focus]; sn.x=cx; sn.y=cy-Math.min(H*0.12,90);
+      const s=subjects.find(x=>x.id===focus);
+      s.u.forEach((u,j)=>{const a=-Math.PI/2+j/s.u.length*Math.PI*2,rr=Math.min(W,H)*0.26;const un=byId[focus+'::'+u];un.x=sn.x+Math.cos(a)*rr;un.y=sn.y+Math.sin(a)*rr;});
+      const ps=prereqs.filter(p=>preSubj[p.id]&&preSubj[p.id].has(focus));
+      ps.forEach((p,i)=>{const pn=byId[p.id];pn.x=cx+((i-(ps.length-1)/2)*180);pn.y=cy+Math.min(H*0.22,180);
+        p.sub.forEach((sc,j)=>{const a=Math.PI/2+(j-(p.sub.length-1)/2)*0.32;const cn=byId[p.id+'::'+sc];cn.x=pn.x+Math.cos(a)*74;cn.y=pn.y+Math.sin(a)*74;});});
+    }
+    alpha=1;
+  }
+  resize(); reseed();
+
+  function tick(){
+    const V=nodes.filter(vis), cx=W/2, cy=H/2;
+    for(let i=0;i<V.length;i++){const a=V[i];
+      for(let j=i+1;j<V.length;j++){const b=V[j];
+        let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+0.01,d=Math.sqrt(d2);
+        const small=(a.type==='unit'||a.type==='presub')&&(b.type==='unit'||b.type==='presub');
+        const rep=small?2200:5200,f=rep/d2,fx=dx/d*f,fy=dy/d*f;
+        a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;}
+      a.vx+=(cx-a.x)*0.0014; a.vy+=(cy-a.y)*0.0014;}
+    edges.forEach(e=>{const a=byId[e.a],b=byId[e.b];if(!vis(a)||!vis(b))return;
+      let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,k=e.kind==='ps'?0.018:e.kind==='su'?0.05:0.06,f=(d-e.len)*k;
+      const fx=dx/d*f,fy=dy/d*f;a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;});
+    V.forEach(n=>{if(n===drag||pinned.has(n.id)){n.vx=0;n.vy=0;return;}
+      n.vx*=0.84;n.vy*=0.84;n.x+=n.vx*alpha;n.y+=n.vy*alpha;
+      n.x=Math.max(n.r+6,Math.min(W-n.r-6,n.x));n.y=Math.max(n.r+118,Math.min(H-n.r-44,n.y));});
+    alpha+=(0.1-alpha)*0.02;
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const hl=hover, near=hl?adj[hl.id]:null;
+    edges.forEach(e=>{const a=byId[e.a],b=byId[e.b];if(!vis(a)||!vis(b))return;
+      const on=hl&&(e.a===hl.id||e.b===hl.id);
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      if(e.kind==='ps'){ctx.strokeStyle=css('--edge-pre');ctx.globalAlpha=on?1:(hl?0.14:0.5);ctx.lineWidth=on?2.2:1.4;ctx.setLineDash([5,4]);}
+      else if(e.kind==='pp'){ctx.strokeStyle=css('--edge-pre');ctx.globalAlpha=hl?(on?0.9:0.1):0.4;ctx.lineWidth=on?1.5:0.9;ctx.setLineDash([]);}
+      else{ctx.strokeStyle=css('--edge');ctx.globalAlpha=hl?(on?0.85:0.07):0.48;ctx.lineWidth=on?1.6:0.9;ctx.setLineDash([]);}
+      ctx.stroke();});
+    ctx.setLineDash([]);ctx.globalAlpha=1;
+    nodes.forEach(n=>{if(!vis(n))return;
+      const rel=hl&&(n===hl||near.has(n.id)||(n.type==='unit'&&hl.type==='subject'&&n.sub===hl.id)||(n.type==='presub'&&hl.type==='pre'&&n.pr===hl.id));
+      const dim=hl&&!rel; ctx.globalAlpha=dim?0.18:1; const c=colOf(n);
+      ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,7);
+      if(n.type==='subject'){ctx.fillStyle=c;ctx.fill();}
+      else if(n.type==='pre'){ctx.fillStyle=css('--ground');ctx.fill();ctx.lineWidth=3;ctx.strokeStyle=c;ctx.stroke();ctx.beginPath();ctx.arc(n.x,n.y,n.r-5.5,0,7);ctx.fillStyle=c;ctx.globalAlpha=(dim?0.18:1)*0.9;ctx.fill();ctx.globalAlpha=dim?0.18:1;}
+      else if(n.type==='presub'){ctx.fillStyle=c;ctx.globalAlpha=(dim?0.18:1)*0.75;ctx.fill();ctx.globalAlpha=dim?0.18:1;}
+      else{ctx.fillStyle=css('--ground');ctx.fill();ctx.lineWidth=1.8;ctx.strokeStyle=c;ctx.stroke();}
+      ctx.globalAlpha=dim?0.22:1; ctx.fillStyle=(n.type==='pre'||n.type==='presub')?c:css('--ink');
+      ctx.font=(n.type==='subject'?'700 13px ':n.type==='pre'?'700 12px ':n.type==='presub'?'500 10px ':'500 10.5px ')+'"Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif';
+      ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(n.label,n.x,n.y+n.r+3.5);});
+    ctx.globalAlpha=1;
+  }
+  let raf; function loop(){tick();draw();raf=requestAnimationFrame(loop);} loop();
+
+  const tip=document.getElementById('tip'),tipT=tip.querySelector('.t'),tipS=tip.querySelector('.s');
+  const pick=(mx,my)=>{let best=null,bd=1e9;nodes.forEach(n=>{if(!vis(n))return;const d=Math.hypot(n.x-mx,n.y-my);if(d<n.r+6&&d<bd){bd=d;best=n;}});return best;};
+  const pos=ev=>{const r=cv.getBoundingClientRect();const t=ev.touches?ev.touches[0]:ev;return{x:t.clientX-r.left,y:t.clientY-r.top};};
+  function move(ev){const p=pos(ev);
+    if(drag){drag.x=p.x;drag.y=p.y;alpha=Math.max(alpha,0.45);}
+    const n=drag||pick(p.x,p.y); hover=n; cv.style.cursor=n?'pointer':'default';
+    if(n){tipT.textContent=n.label;
+      tipS.textContent=n.type==='subject'?('과목 · '+n.k+'계열 · 단원 '+subjects.find(s=>s.id===n.id).u.length+'개')
+        :n.type==='pre'?('선수과목·선수개념 · '+(preSubj[n.id]?preSubj[n.id].size:0)+'개 과목이 전제')
+        :n.type==='presub'?(byId[n.pr].label+'의 세부 개념'):(subjects.find(s=>s.id===n.sub)?.name+' 단원');
+      tip.style.left=n.x+'px';tip.style.top=(n.y-n.r-6)+'px';tip.style.opacity=1;} else tip.style.opacity=0;}
+  function down(ev){const p=pos(ev);const n=pick(p.x,p.y);if(n){drag=n;pinned.add(n.id);if(ev.cancelable)ev.preventDefault();}}
+  const up=()=>{drag=null;};
+  cv.addEventListener('mousemove',move);cv.addEventListener('mousedown',down);addEventListener('mouseup',up);
+  cv.addEventListener('touchstart',e=>{down(e);move(e);},{passive:false});
+  cv.addEventListener('touchmove',e=>{move(e);if(drag&&e.cancelable)e.preventDefault();},{passive:false});
+  addEventListener('touchend',up);
+  cv.addEventListener('dblclick',e=>{const p=pos(e);const n=pick(p.x,p.y);if(n){pinned.delete(n.id);alpha=0.5;}});
+
+  // 과목 필터 pills
+  const bar=document.getElementById('bar'), title=document.getElementById('title');
+  const items=[{id:null,label:'전체',col:'--soc'}].concat(subjects.map(s=>({id:s.id,label:s.short,col:KV[s.k]})));
+  const pills=items.map(it=>{const b=document.createElement('button');b.className='pill';b.textContent=it.label;
+    b.onclick=()=>setFocus(it.id);bar.appendChild(b);return {b,it};});
+  function setFocus(id){focus=id;pinned.clear();
+    pills.forEach(({b,it})=>{const on=it.id===id;b.classList.toggle('on',on);b.style.background=on?css(it.col):'';});
+    title.textContent='지식 맵 · '+(id?subjects.find(s=>s.id===id).name:'전체');
+    reseed();}
+  setFocus(null);
+  function stat(){const nU=nodes.filter(n=>n.type==='unit').length,nPS=nodes.filter(n=>n.type==='presub').length;
+    document.getElementById('stat').textContent=subjects.length+'개 과목 · '+nU+'개 단원 · 선수과목·선수개념 '+prereqs.length+'종('+nPS+'개 세부개념)';}
+  stat();
+
+  const root=document.documentElement,tb=document.getElementById('theme');
+  tb.addEventListener('click',()=>{const cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');root.setAttribute('data-theme',cur==='dark'?'light':'dark');});
+})();
+</script>
+</body>
+</html>
